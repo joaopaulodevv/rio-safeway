@@ -1,0 +1,12 @@
+# Ambiente virtual
+.venv/
+venv/
+
+# Cache do Python
+__pycache__/
+*.py[cod]
+
+# Mapas gerados pela aplicação
+mapa_bubble.html
+mapa_heat.html
+mapa_scatter.html
