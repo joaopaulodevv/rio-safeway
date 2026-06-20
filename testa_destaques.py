@@ -1,89 +1,112 @@
 """
 Programa testador do módulo Destaques — Rio SafeWay.
 
-Cobre os cenários previstos na especificação (seção 5.1) para as funções
-bairro_alerta e top_crime_pbairro, além de verificar a atualização do estado
-encapsulado por atualizar_destaques.
+Cobre os códigos de retorno de calcular_bairro_alerta, obter_bairro_alerta,
+calcular_top_crime_pbairro e obter_top_crime_pbairro. Reinicia Dataframe, Crime
+e Destaques a cada teste e carrega conjuntos específicos.
 """
 
+import os
+import tempfile
 import unittest
 
-import pandas as pd
-
+import crime
+import dataframe
 import destaques
 
+# Copa 3 (Roubo,Furto,Furto), Centro 2 (Furto,Roubo), Desconhecido 1 -> média 2
+SAMPLE_MULTI = (
+    "data,latitude,longitude,tipo_crime\n"
+    "2024-01-01,-22.9700,-43.1850,Roubo\n"
+    "2024-02-01,-22.9720,-43.1830,Furto\n"
+    "2024-03-01,-22.9680,-43.1880,Furto\n"
+    "2024-04-01,-22.9050,-43.1800,Furto\n"
+    "2024-05-01,-22.9080,-43.1760,Roubo\n"
+    "2024-06-01,-23.0600,-43.1800,Roubo\n"
+)
+# Copa 2, Centro 2 -> média 2, ninguém estritamente acima
+SAMPLE_IGUAL = (
+    "data,latitude,longitude,tipo_crime\n"
+    "2024-01-01,-22.9700,-43.1850,Roubo\n"
+    "2024-02-01,-22.9720,-43.1830,Furto\n"
+    "2024-03-01,-22.9050,-43.1800,Furto\n"
+    "2024-04-01,-22.9080,-43.1760,Roubo\n"
+)
+# Apenas Copacabana -> 1 bairro
+SAMPLE_UM_BAIRRO = (
+    "data,latitude,longitude,tipo_crime\n"
+    "2024-01-01,-22.9700,-43.1850,Roubo\n"
+    "2024-02-01,-22.9720,-43.1830,Furto\n"
+    "2024-03-01,-22.9680,-43.1880,Furto\n"
+)
+# Copacabana com empate Furto 1 x Roubo 1
+SAMPLE_EMPATE = (
+    "data,latitude,longitude,tipo_crime\n"
+    "2024-01-01,-22.9700,-43.1850,Furto\n"
+    "2024-02-01,-22.9720,-43.1830,Roubo\n"
+)
 
-def _df_alerta(distribuicao):
-    """DataFrame com {bairro: qtd} ocorrências (tipo de crime fixo)."""
-    linhas = []
-    for bairro, qtd in distribuicao.items():
-        for _ in range(qtd):
-            linhas.append({"bairro": bairro, "tipo_crime": "Furto"})
-    return pd.DataFrame(linhas, columns=["bairro", "tipo_crime"])
+
+def _carregar(texto):
+    caminho = os.path.join(tempfile.mkdtemp(), "dados.csv")
+    with open(caminho, "w", encoding="utf-8") as f:
+        f.write(texto)
+    dataframe.resetar()
+    crime.resetar()
+    destaques.resetar()
+    dataframe.carregar_dados(caminho)
+    dataframe.filtra_dados_invalidos()
+    dataframe.processar_coluna_bairros()
 
 
-def _df_top(pares):
-    """DataFrame a partir de uma lista de (bairro, tipo_crime)."""
-    return pd.DataFrame(pares, columns=["bairro", "tipo_crime"])
+class TestCalcularBairroAlerta(unittest.TestCase):
+    def test_bairro_identificado(self):
+        _carregar(SAMPLE_MULTI)
+        self.assertEqual(destaques.calcular_bairro_alerta(), destaques.DEST_CondRet.OK)
+        self.assertEqual(destaques.obter_bairro_alerta(),
+                         (destaques.DEST_CondRet.OK, "Copacabana", 3))
 
-
-class TestBairroAlerta(unittest.TestCase):
-    def test_multiplos_acima_da_media(self):
-        df = _df_alerta({"Copacabana": 15, "Ipanema": 10, "Leblon": 5})
-        self.assertEqual(destaques.bairro_alerta(df), [("Copacabana", 15)])
-
-    def test_ponto_fora_da_curva(self):
-        dist = {"Centro": 100}
-        for i in range(9):
-            dist[f"Bairro{i}"] = 1
-        df = _df_alerta(dist)
-        self.assertEqual(destaques.bairro_alerta(df), [("Centro", 100)])
-
-    def test_distribuicao_igual(self):
-        df = _df_alerta({"Gávea": 20, "Botafogo": 20, "Flamengo": 20})
-        self.assertEqual(destaques.bairro_alerta(df), [])
+    def test_nenhum_acima_da_media(self):
+        _carregar(SAMPLE_IGUAL)
+        self.assertEqual(destaques.calcular_bairro_alerta(), destaques.DEST_CondRet.FALHA)
 
     def test_um_unico_bairro(self):
-        df = _df_alerta({"Tijuca": 50})
-        self.assertEqual(destaques.bairro_alerta(df), [])
-
-    def test_tabela_vazia(self):
-        df = pd.DataFrame(columns=["bairro", "tipo_crime"])
-        self.assertEqual(destaques.bairro_alerta(df), [])
+        _carregar(SAMPLE_UM_BAIRRO)
+        self.assertEqual(destaques.calcular_bairro_alerta(), destaques.DEST_CondRet.ERRO)
 
 
-class TestTopCrimePbairro(unittest.TestCase):
-    def test_distribuicao_clara(self):
-        df = _df_top([
-            ("Botafogo", "Furto de Bicicleta"),
-            ("Botafogo", "Furto de Bicicleta"),
-            ("Botafogo", "Roubo"),
-            ("Maracanã", "Roubo a Transeunte"),
-            ("Maracanã", "Roubo a Transeunte"),
-            ("Maracanã", "Furto"),
-        ])
-        self.assertEqual(destaques.top_crime_pbairro(df), {
-            "Botafogo": "Furto de Bicicleta",
-            "Maracanã": "Roubo a Transeunte",
-        })
+class TestObterBairroAlerta(unittest.TestCase):
+    def test_antes_de_calcular(self):
+        destaques.resetar()
+        self.assertEqual(destaques.obter_bairro_alerta(),
+                         (destaques.DEST_CondRet.FALHA, None, 0))
+
+
+class TestCalcularTopCrimePbairro(unittest.TestCase):
+    def test_bairro_existente(self):
+        _carregar(SAMPLE_MULTI)
+        self.assertEqual(destaques.calcular_top_crime_pbairro("Copacabana"),
+                         destaques.DEST_CondRet.OK)
+        self.assertEqual(destaques.obter_top_crime_pbairro("Copacabana"),
+                         (destaques.DEST_CondRet.OK, "Furto"))
 
     def test_empate(self):
-        pares = [("Gávea", "Furto")] * 5 + [("Gávea", "Roubo")] * 5
-        df = _df_top(pares)
-        self.assertEqual(destaques.top_crime_pbairro(df), {"Gávea": "Furto e Roubo"})
+        _carregar(SAMPLE_EMPATE)
+        destaques.calcular_top_crime_pbairro("Copacabana")
+        self.assertEqual(destaques.obter_top_crime_pbairro("Copacabana"),
+                         (destaques.DEST_CondRet.OK, "Furto e Roubo"))
 
-    def test_tabela_vazia(self):
-        df = pd.DataFrame(columns=["bairro", "tipo_crime"])
-        self.assertEqual(destaques.top_crime_pbairro(df), {})
+    def test_bairro_inexistente(self):
+        _carregar(SAMPLE_MULTI)
+        self.assertEqual(destaques.calcular_top_crime_pbairro("Atlântida"),
+                         destaques.DEST_CondRet.FALHA)
 
 
-class TestAtualizarDestaques(unittest.TestCase):
-    def test_estado_encapsulado(self):
-        df = _df_alerta({"Copacabana": 15, "Ipanema": 10, "Leblon": 5})
-        destaques.atualizar_destaques(df)
-        info = destaques.obter_destaques()
-        self.assertEqual(info["bairros_alerta"], [("Copacabana", 15)])
-        self.assertIn("Copacabana", info["crime_por_bairro"])
+class TestObterTopCrimePbairro(unittest.TestCase):
+    def test_antes_de_calcular(self):
+        destaques.resetar()
+        self.assertEqual(destaques.obter_top_crime_pbairro("Copacabana"),
+                         (destaques.DEST_CondRet.FALHA, None))
 
 
 if __name__ == "__main__":

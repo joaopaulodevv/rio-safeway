@@ -1,241 +1,200 @@
 """
 Módulo Main — Rio SafeWay.
 
-Orquestrador (front-end) da aplicação. Coordena a comunicação entre os módulos
-Dataframe, Período, Crime, Mapa e Destaques, recebe as interações do usuário e
-direciona o fluxo de execução: carregamento dos dados, aplicação de filtros,
-geração das visualizações e exibição dos destaques.
+Orquestrador (front-end) da aplicação. Inicia o sistema, carrega os dados e
+executa o laço de menu, coordenando os módulos Dataframe, Período, Crime, Mapa
+e Destaques apenas pelas interfaces (códigos de retorno e cópias de primitivos).
+Nunca enxerga a tabela: todos os relatórios são montados a partir dos getters
+dos TADs.
 
-Padrão da disciplina: módulo procedural. Não define classes próprias; mantém
-apenas o estado de trabalho da sessão (a tabela atual) e delega toda a lógica
-às funções de acesso dos demais módulos. Trata os erros previstos (exceções
-levantadas pelos módulos) para que a aplicação não quebre.
+Padrão da disciplina: módulo procedural; não define classes próprias e não
+guarda a base (quem guarda é o Dataframe). Trata os códigos de retorno para que
+a aplicação não quebre.
 """
-
-import pandas as pd
 
 import crime
 import dataframe
 import destaques
-import mapa
 import periodo
+import mapa
 
 ARQUIVO_DADOS = "dados_crimes.csv"
 
-# Estado de trabalho da sessão (vive em memória durante a execução).
-_df_base = None    # conjunto completo carregado e enriquecido
-_df_atual = None   # recorte atual após os filtros aplicados
 
+def iniciar_sistema() -> bool:
+    """Carrega, limpa e enriquece os dados. Devolve True se houver base útil."""
+    codigo = dataframe.carregar_dados(ARQUIVO_DADOS)
+    if codigo == dataframe.DF_CondRet.FALHA:
+        print(f"Arquivo '{ARQUIVO_DADOS}' não encontrado.")
+        return False
+    if codigo == dataframe.DF_CondRet.ERRO:
+        print(f"Arquivo '{ARQUIVO_DADOS}' corrompido ou em formato incorreto.")
+        return False
 
-def _df_vazio() -> pd.DataFrame:
-    """Cria uma tabela vazia, porém com a estrutura de colunas esperada."""
-    vazio = pd.DataFrame(columns=dataframe.COLUNAS_OBRIGATORIAS)
-    return dataframe.coluna_bairros(vazio)
-
-
-def carregar() -> None:
-    """Carrega, limpa e enriquece os dados a partir do CSV (recuperação)."""
-    global _df_base, _df_atual
-    try:
-        bruto = dataframe.carregar_dados(ARQUIVO_DADOS)
-        limpo = dataframe.filtra_dados(bruto)
-        _df_base = dataframe.coluna_bairros(limpo)
-        print(f"Dados carregados: {len(_df_base)} ocorrências.")
-    except FileNotFoundError:
-        _df_base = _df_vazio()
-        print(f"Arquivo '{ARQUIVO_DADOS}' não encontrado. Iniciando vazio.")
-    except ValueError as erro:
-        _df_base = _df_vazio()
-        print(f"Erro ao carregar os dados: {erro}. Iniciando vazio.")
-    _df_atual = _df_base.copy()
-    destaques.atualizar_destaques(_df_atual)
-
-
-def _ler_data(rotulo: str):
-    """Lê uma data AAAA-MM-DD do usuário e devolve um pd.Timestamp (ou None)."""
-    texto = input(f"{rotulo} (AAAA-MM-DD): ").strip()
-    try:
-        return pd.Timestamp(texto)
-    except (ValueError, TypeError):
-        print("Data inválida.")
-        return None
-
-
-def acao_adicionar() -> None:
-    """Adiciona uma nova ocorrência ao conjunto atual."""
-    global _df_base, _df_atual
-    data = _ler_data("Data da ocorrência")
-    if data is None:
-        return
-    latitude = input("Latitude: ").strip()
-    longitude = input("Longitude: ").strip()
-    tipo_crime = input("Tipo de crime: ").strip()
-    try:
-        novo = dataframe.adiciona_dado(_df_base, data, latitude, longitude, tipo_crime)
-        _df_base = dataframe.coluna_bairros(novo)
-        _df_atual = _df_base.copy()
-        destaques.atualizar_destaques(_df_atual)
-        print("Ocorrência adicionada.")
-    except (ValueError, TypeError) as erro:
-        print(f"Não foi possível adicionar: {erro}")
-
-
-def acao_remover() -> None:
-    """Remove ocorrências do conjunto atual por critérios (Enter = ignora)."""
-    global _df_base, _df_atual
-    print("Deixe em branco os critérios que não quiser usar.")
-    tipo_crime = input("Tipo de crime: ").strip() or None
-    data_txt = input("Data (AAAA-MM-DD): ").strip()
-    data = pd.Timestamp(data_txt) if data_txt else None
-    try:
-        novo = dataframe.remove_dados(_df_base, data=data, tipo_crime=tipo_crime)
-        removidos = len(_df_base) - len(novo)
-        _df_base = novo
-        _df_atual = _df_base.copy()
-        destaques.atualizar_destaques(_df_atual)
-        print(f"{removidos} ocorrência(s) removida(s).")
-    except ValueError as erro:
-        print(f"Não foi possível remover: {erro}")
+    dataframe.filtra_dados_invalidos()
+    dataframe.processar_coluna_bairros()
+    print("Sistema iniciado e dados carregados.")
+    return True
 
 
 def acao_filtrar_periodo() -> None:
-    """Aplica um recorte temporal sobre o conjunto atual."""
-    global _df_atual
-    inicio = _ler_data("Início do período")
-    fim = _ler_data("Fim do período")
-    if inicio is None or fim is None:
-        return
-    try:
-        _df_atual = periodo.filtra_dfPeriodo(_df_atual, inicio, fim)
-        destaques.atualizar_destaques(_df_atual)
-        print(f"Recorte aplicado: {len(_df_atual)} ocorrências no período.")
-    except TypeError as erro:
-        print(f"Erro no filtro de período: {erro}")
+    """Menu 1: aplica recorte temporal sobre a visão ativa."""
+    inicio = input("Data de início (AAAA-MM-DD): ").strip()
+    fim = input("Data de fim (AAAA-MM-DD): ").strip()
+    codigo = periodo.aplicar_filtro_periodo(inicio, fim)
+    if codigo == periodo.PER_CondRet.OK:
+        print("Filtro de período aplicado.")
+    elif codigo == periodo.PER_CondRet.FALHA:
+        print("Datas inválidas (invertidas, iguais ou formato incorreto).")
+    else:
+        print("Período válido, mas sem ocorrências no intervalo.")
 
 
 def acao_filtrar_crime() -> None:
-    """Filtra o conjunto atual por um tipo de crime específico."""
-    global _df_atual
+    """Menu 2: filtra a visão ativa por um tipo de crime."""
     tipo = input("Tipo de crime: ").strip()
-    try:
-        _df_atual = crime.df_crime_espec(_df_atual, tipo)
-        destaques.atualizar_destaques(_df_atual)
-        print(f"Filtro aplicado: {len(_df_atual)} ocorrências do tipo '{tipo}'.")
-    except TypeError as erro:
-        print(f"Erro no filtro de crime: {erro}")
+    codigo = crime.aplicar_filtro_crime(tipo)
+    if codigo == crime.CRIME_CondRet.OK:
+        print(f"Filtro de crime '{tipo}' aplicado.")
+    elif codigo == crime.CRIME_CondRet.FALHA:
+        print("Tipo de crime inválido.")
+    else:
+        print(f"Nenhuma ocorrência do tipo '{tipo}' na base atual.")
 
 
-def acao_reset() -> None:
-    """Remove os filtros, voltando ao conjunto completo."""
-    global _df_atual
-    _df_atual = _df_base.copy()
-    destaques.atualizar_destaques(_df_atual)
+def acao_limpar_filtros() -> None:
+    """Menu 3: remove todos os filtros e restaura a visão completa."""
+    periodo.limpar_filtro_periodo()
+    crime.limpar_filtro_crime()
     print("Filtros removidos.")
 
 
-def acao_contagem_crime() -> None:
-    """Mostra a contagem de ocorrências por tipo de crime."""
-    contagem = crime.conta_ocor_tpCrime(_df_atual)
-    if not contagem:
+def relatorio_contagem_crime() -> None:
+    """Menu 5: contagem de ocorrências por tipo de crime."""
+    if crime.processar_contagem_tpCrime() == crime.CRIME_CondRet.FALHA:
         print("Sem ocorrências para contar.")
         return
+    _, lista = crime.obter_lista_crimes()
     print("\nOcorrências por tipo de crime:")
-    for tipo, qtd in sorted(contagem.items(), key=lambda x: x[1], reverse=True):
+    contagens = []
+    for tipo in lista:
+        _, qtd = crime.obter_qtd_crime(tipo)
+        contagens.append((tipo, qtd))
+    for tipo, qtd in sorted(contagens, key=lambda x: x[1], reverse=True):
         print(f"  {tipo}: {qtd}")
 
 
-def acao_contagem_bairro() -> None:
-    """Mostra a contagem de ocorrências por bairro."""
-    try:
-        contagem = crime.conta_ocor_bairro(_df_atual)
-    except KeyError as erro:
-        print(f"Erro: {erro}")
-        return
-    if not contagem:
+def relatorio_contagem_bairro() -> None:
+    """Menu 6: contagem de ocorrências por bairro."""
+    codigo = crime.processar_contagem_bairro()
+    if codigo == crime.CRIME_CondRet.FALHA:
         print("Sem ocorrências para contar.")
         return
+    if codigo == crime.CRIME_CondRet.ERRO:
+        print("Coluna de bairros não processada.")
+        return
+    _, lista = crime.obter_lista_bairros()
     print("\nOcorrências por bairro:")
-    for bairro, qtd in sorted(contagem.items(), key=lambda x: x[1], reverse=True):
+    contagens = []
+    for bairro in lista:
+        _, qtd = crime.obter_qtd_bairro(bairro)
+        contagens.append((bairro, qtd))
+    for bairro, qtd in sorted(contagens, key=lambda x: x[1], reverse=True):
         print(f"  {bairro}: {qtd}")
 
 
-def acao_mapa(funcao, nome: str) -> None:
-    """Gera um mapa usando a função de visualização informada."""
-    try:
-        if funcao(_df_atual):
-            print(f"{nome} gerado com sucesso.")
-        else:
-            print(f"{nome} não gerado: não há coordenadas válidas.")
-    except KeyError as erro:
-        print(f"Erro ao gerar {nome}: {erro}")
-
-
-def acao_destaques() -> None:
-    """Exibe os destaques atuais (bairros em alerta e crime predominante)."""
-    info = destaques.obter_destaques()
-    print("\n--- Destaques ---")
-    alertas = info["bairros_alerta"]
-    if alertas:
-        print("Bairros em alerta (acima da média de crimes):")
-        for bairro, total in alertas:
-            print(f"  {bairro}: {total} ocorrências")
+def relatorio_bairro_alerta() -> None:
+    """Menu 7: bairro em alerta (acima da média)."""
+    codigo = destaques.calcular_bairro_alerta()
+    if codigo == destaques.DEST_CondRet.OK:
+        _, nome, qtd = destaques.obter_bairro_alerta()
+        print(f"\nBairro em alerta: {nome} ({qtd} ocorrências).")
+    elif codigo == destaques.DEST_CondRet.FALHA:
+        print("\nNenhum bairro estritamente acima da média.")
     else:
-        print("Nenhum bairro em alerta.")
-    predominante = info["crime_por_bairro"]
-    if predominante:
-        print("Crime predominante por bairro:")
-        for bairro, tipo in sorted(predominante.items()):
-            print(f"  {bairro}: {tipo}")
+        print("\nImpossível calcular a média (0 ou 1 bairro na base).")
+
+
+def relatorio_top_crime() -> None:
+    """Menu 8: crime predominante por bairro."""
+    if crime.processar_contagem_bairro() != crime.CRIME_CondRet.OK:
+        print("Sem dados para o relatório.")
+        return
+    _, bairros = crime.obter_lista_bairros()
+    print("\nCrime predominante por bairro:")
+    for bairro in sorted(bairros):
+        destaques.calcular_top_crime_pbairro(bairro)
+        _, tipo = destaques.obter_top_crime_pbairro(bairro)
+        print(f"  {bairro}: {tipo}")
+
+
+def acao_relatorio_geral() -> None:
+    """Menu 4: abre o relatório completo (estatísticas e destaques)."""
+    relatorio_contagem_crime()
+    relatorio_contagem_bairro()
+    relatorio_bairro_alerta()
+    relatorio_top_crime()
+
+
+def acao_mapa(funcao, nome: str) -> None:
+    """Menus 9-11: gera um mapa, tratando o código de retorno."""
+    codigo = funcao()
+    if codigo == mapa.MAPA_CondRet.OK:
+        print(f"{nome} gerado com sucesso.")
+    elif codigo == mapa.MAPA_CondRet.FALHA:
+        print(f"{nome} abortado: base ativa vazia.")
+    else:
+        print(f"{nome} abortado: coordenadas ausentes ou corrompidas.")
 
 
 MENU = """
-========= Rio SafeWay =========
-1  - Adicionar ocorrência
-2  - Remover ocorrências
-3  - Filtrar por período
-4  - Filtrar por tipo de crime
-5  - Remover filtros (dados completos)
-6  - Contagem por tipo de crime
-7  - Contagem por bairro
-8  - Gerar bubble map
-9  - Gerar heat map
-10 - Gerar scatter plot map
-11 - Ver destaques
-0  - Sair
-==============================="""
+============= Rio SafeWay =============
+1  - Filtrar dados por período
+2  - Filtrar dados por tipo de crime
+3  - Limpar filtros
+4  - Abrir Relatório (estatísticas)
+5  - Relatório: Contagem por Tipo de Crime
+6  - Relatório: Contagem por Bairro
+7  - Relatório: Bairros em Alerta (Acima da Média)
+8  - Relatório: Crime Predominante por Bairro
+9  - Mapa de Bolhas
+10 - Mapa de Calor
+11 - Mapa de Dispersão
+12 - Sair
+======================================"""
 
 
 def main() -> None:
-    """Laço principal: apresenta o menu e direciona as ações do usuário."""
-    carregar()
+    """Inicia o sistema e executa o laço principal do menu."""
+    iniciar_sistema()
     while True:
         print(MENU)
         opcao = input("Opção: ").strip()
-        if opcao == "0":
+        if opcao == "12":
             print("Encerrando o Rio SafeWay.")
             break
         elif opcao == "1":
-            acao_adicionar()
-        elif opcao == "2":
-            acao_remover()
-        elif opcao == "3":
             acao_filtrar_periodo()
-        elif opcao == "4":
+        elif opcao == "2":
             acao_filtrar_crime()
+        elif opcao == "3":
+            acao_limpar_filtros()
+        elif opcao == "4":
+            acao_relatorio_geral()
         elif opcao == "5":
-            acao_reset()
+            relatorio_contagem_crime()
         elif opcao == "6":
-            acao_contagem_crime()
+            relatorio_contagem_bairro()
         elif opcao == "7":
-            acao_contagem_bairro()
+            relatorio_bairro_alerta()
         elif opcao == "8":
-            acao_mapa(mapa.plot_bubbleMap, "Bubble map")
+            relatorio_top_crime()
         elif opcao == "9":
-            acao_mapa(mapa.plot_heatMap, "Heat map")
+            acao_mapa(mapa.plot_bubbleMap, "Mapa de bolhas")
         elif opcao == "10":
-            acao_mapa(mapa.plot_scatterPlotMap, "Scatter plot map")
+            acao_mapa(mapa.plot_heatMap, "Mapa de calor")
         elif opcao == "11":
-            acao_destaques()
+            acao_mapa(mapa.plot_scatterPlotMap, "Mapa de dispersão")
         else:
             print("Opção inválida.")
 

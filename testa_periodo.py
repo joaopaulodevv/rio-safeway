@@ -1,82 +1,94 @@
 """
 Programa testador do módulo Período — Rio SafeWay.
 
-Cobre os cenários previstos na especificação (seção 5.1) para as funções
-valida_periodo e filtra_dfPeriodo, incluindo seus retornos e exceções.
+Cobre os códigos de retorno de valida_periodo, aplicar_filtro_periodo e
+limpar_filtro_periodo. O Dataframe é reiniciado e carregado a cada teste, pois
+o filtro de período opera sobre a visão ativa por meio dele.
 """
 
+import os
+import tempfile
 import unittest
 
-import pandas as pd
-
+import dataframe
 import periodo
 
+SAMPLE = (
+    "data,latitude,longitude,tipo_crime\n"
+    "2024-01-01,-22.9700,-43.1850,Roubo\n"
+    "2024-03-01,-22.9720,-43.1830,Furto\n"
+    "2024-06-01,-22.9050,-43.1800,Furto\n"
+)
 
-def _df_exemplo():
-    """DataFrame com ocorrências distribuídas ao longo de 2024 e 2025."""
-    datas = pd.to_datetime([
-        "2024-01-10", "2024-04-15", "2024-07-20",
-        "2024-10-05", "2025-02-14", "2025-08-30",
-    ])
-    return pd.DataFrame({
-        "data": datas,
-        "latitude": [-22.97] * 6,
-        "longitude": [-43.18] * 6,
-        "tipo_crime": ["Roubo"] * 6,
-    })
+
+def _carregar():
+    caminho = os.path.join(tempfile.mkdtemp(), "dados.csv")
+    with open(caminho, "w", encoding="utf-8") as f:
+        f.write(SAMPLE)
+    dataframe.resetar()
+    periodo.resetar()
+    dataframe.carregar_dados(caminho)
+    dataframe.processar_coluna_bairros()
+
+
+def _contar_ativo():
+    qtd = 0
+    while dataframe.obter_registro(qtd)[0] == dataframe.DF_CondRet.OK:
+        qtd += 1
+    return qtd
 
 
 class TestValidaPeriodo(unittest.TestCase):
-    def setUp(self):
-        self.df = _df_exemplo()
-
-    def test_caminho_feliz(self):
-        self.assertTrue(periodo.valida_periodo(
-            self.df, pd.Timestamp("2024-01-01"), pd.Timestamp("2024-12-31")))
+    def test_periodo_valido(self):
+        self.assertEqual(periodo.valida_periodo("2024-01-01", "2024-12-31"),
+                         periodo.PER_CondRet.OK)
 
     def test_datas_invertidas(self):
-        self.assertFalse(periodo.valida_periodo(
-            self.df, pd.Timestamp("2024-12-31"), pd.Timestamp("2024-01-01")))
+        self.assertEqual(periodo.valida_periodo("2024-12-31", "2024-01-01"),
+                         periodo.PER_CondRet.FALHA)
 
-    def test_unico_dia(self):
-        dia = pd.Timestamp("2024-07-20")
-        self.assertTrue(periodo.valida_periodo(self.df, dia, dia))
-
-    def test_fora_do_escopo(self):
-        self.assertFalse(periodo.valida_periodo(
-            self.df, pd.Timestamp("1990-01-01"), pd.Timestamp("1990-12-31")))
+    def test_limite_um_dia(self):
+        self.assertEqual(periodo.valida_periodo("2024-05-15", "2024-05-15"),
+                         periodo.PER_CondRet.FALHA)
 
     def test_tipagem_incorreta(self):
-        with self.assertRaises(TypeError):
-            periodo.valida_periodo(self.df, "01/01/2026", "31/12/2026")
+        self.assertEqual(periodo.valida_periodo(123, 456), periodo.PER_CondRet.ERRO)
+
+    def test_formato_invalido(self):
+        self.assertEqual(periodo.valida_periodo("ontem", "hoje"),
+                         periodo.PER_CondRet.ERRO)
 
     def test_parametros_nulos(self):
-        self.assertFalse(periodo.valida_periodo(self.df, None, pd.Timestamp("2024-12-31")))
-        self.assertFalse(periodo.valida_periodo(self.df, pd.Timestamp("2024-01-01"), None))
+        self.assertEqual(periodo.valida_periodo(None, "2024-12-31"),
+                         periodo.PER_CondRet.ERRO)
 
 
-class TestFiltraDfPeriodo(unittest.TestCase):
+class TestAplicarFiltroPeriodo(unittest.TestCase):
     def setUp(self):
-        self.df = _df_exemplo()
+        _carregar()
 
-    def test_recorte_perfeito(self):
-        resultado = periodo.filtra_dfPeriodo(
-            self.df, pd.Timestamp("2024-01-01"), pd.Timestamp("2024-12-31"))
-        self.assertEqual(len(resultado), 4)
-        self.assertGreaterEqual(resultado["data"].min(), pd.Timestamp("2024-01-01"))
-        self.assertLessEqual(resultado["data"].max(), pd.Timestamp("2024-12-31"))
+    def test_aplicado_com_ocorrencias(self):
+        self.assertEqual(periodo.aplicar_filtro_periodo("2024-01-01", "2024-12-31"),
+                         periodo.PER_CondRet.OK)
+        self.assertEqual(_contar_ativo(), 3)
 
-    def test_periodo_sem_ocorrencias(self):
-        resultado = periodo.filtra_dfPeriodo(
-            self.df, pd.Timestamp("2024-05-01"), pd.Timestamp("2024-05-31"))
-        self.assertTrue(resultado.empty)
-        for coluna in ["data", "latitude", "longitude", "tipo_crime"]:
-            self.assertIn(coluna, resultado.columns)
+    def test_falha_validacao(self):
+        self.assertEqual(periodo.aplicar_filtro_periodo("2024-12-31", "2024-01-01"),
+                         periodo.PER_CondRet.FALHA)
 
-    def test_periodo_nao_validado(self):
-        resultado = periodo.filtra_dfPeriodo(
-            self.df, pd.Timestamp("2024-12-31"), pd.Timestamp("2024-01-01"))
-        self.assertEqual(len(resultado), len(self.df))
+    def test_aplicado_sem_ocorrencias(self):
+        self.assertEqual(periodo.aplicar_filtro_periodo("2030-01-01", "2030-12-31"),
+                         periodo.PER_CondRet.ERRO)
+        self.assertEqual(_contar_ativo(), 0)
+
+
+class TestLimparFiltroPeriodo(unittest.TestCase):
+    def test_restaura_visao(self):
+        _carregar()
+        periodo.aplicar_filtro_periodo("2030-01-01", "2030-12-31")
+        self.assertEqual(_contar_ativo(), 0)
+        self.assertEqual(periodo.limpar_filtro_periodo(), periodo.PER_CondRet.OK)
+        self.assertEqual(_contar_ativo(), 3)
 
 
 if __name__ == "__main__":

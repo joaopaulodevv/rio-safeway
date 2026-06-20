@@ -1,157 +1,164 @@
 """
 Módulo Mapa — Rio SafeWay.
 
-TAD responsável pela visualização geoespacial das ocorrências. Concentra as
-três representações gráficas previstas: bubble map, heat map e scatter plot
-map. Consome os dados já filtrados/segmentados pelos módulos anteriores e gera
-arquivos HTML interativos com a biblioteca folium.
+TAD de visualização geoespacial. Encapsula as configurações visuais estáticas
+(diretório de saída, raios, cores, zoom) e gera as três representações: bubble
+map, heat map e scatter plot map. Solicita as coordenadas à base registro a
+registro (via `obter_registro`); nunca acessa a tabela diretamente.
 
-Padrão da disciplina: módulo procedural que expõe apenas funções de acesso.
-A configuração de saída (diretório dos arquivos HTML) fica encapsulada na
-variável de módulo `_dir_saida`, acessível só pelas funções deste módulo.
-folium é biblioteca externa; seus objetos são usados como dados internos.
+Padrão da disciplina: módulo procedural; estado/configuração em variáveis `_`
+de módulo; expõe só funções de acesso e o IntEnum de retorno. folium é
+biblioteca externa cujas instâncias são usadas como dados internos.
 """
 
 import os
+from enum import IntEnum
 
 import folium
-import pandas as pd
 from folium.plugins import HeatMap
 
-# --- estado encapsulado: diretório onde os mapas HTML são gravados ---
+import dataframe
+
+
+class MAPA_CondRet(IntEnum):
+    """Códigos de retorno do módulo Mapa."""
+    OK = 1     # mapa gerado com sucesso
+    FALHA = 0  # base ativa vazia (abortado)
+    ERRO = -1  # coordenadas ausentes/corrompidas (erro fatal)
+
+
+# --- configuração encapsulada ---
 _dir_saida = "."
+_ZOOM_INICIAL = 12
 
 
 def definir_dir_saida(caminho: str) -> None:
     """
-    Objetivo: definir o diretório onde os arquivos HTML dos mapas serão salvos.
+    Objetivo: definir o diretório onde os mapas HTML serão gravados.
 
     Acoplamento:
         caminho (entrada): diretório de saída (criado se não existir).
-    Assertiva de saída: os próximos mapas gerados são gravados em `caminho`.
+    Assertiva de saída: os próximos mapas são gravados em `caminho`.
     """
     global _dir_saida
     os.makedirs(caminho, exist_ok=True)
     _dir_saida = caminho
 
 
-def _coords_validas(df: pd.DataFrame) -> pd.DataFrame:
-    """Extrai as linhas com latitude/longitude numéricas e não nulas.
+def _coletar_pontos():
+    """Percorre a visão ativa e devolve (tem_registro, [(lat, lon), ...])."""
+    pontos = []
+    tem_registro = False
+    indice = 0
+    while True:
+        codigo, _, lat, lon, _, _ = dataframe.obter_registro(indice)
+        if codigo != dataframe.DF_CondRet.OK:
+            break
+        tem_registro = True
+        if lat is not None and lon is not None:
+            pontos.append((lat, lon))
+        indice += 1
+    return tem_registro, pontos
 
-    Levanta KeyError se as colunas 'latitude'/'longitude' não existirem.
+
+def _centro(pontos):
+    """Centro do mapa = média das coordenadas."""
+    lat_media = sum(p[0] for p in pontos) / len(pontos)
+    lon_media = sum(p[1] for p in pontos) / len(pontos)
+    return [lat_media, lon_media]
+
+
+def _gerar(pontos, desenhar, nome_arquivo):
+    """Cria o mapa, aplica `desenhar(mapa)` e salva. Devolve o caminho."""
+    mapa = folium.Map(location=_centro(pontos), zoom_start=_ZOOM_INICIAL)
+    desenhar(mapa)
+    caminho = os.path.join(_dir_saida, nome_arquivo)
+    mapa.save(caminho)
+    return caminho
+
+
+def plot_bubbleMap() -> int:
     """
-    if "latitude" not in df.columns or "longitude" not in df.columns:
-        raise KeyError("Colunas 'latitude' e 'longitude' são obrigatórias.")
+    Objetivo: gerar um bubble map (tamanho da bolha = nº de ocorrências no
+        ponto), consumindo as coordenadas da visão ativa.
 
-    lat = pd.to_numeric(df["latitude"], errors="coerce")
-    lon = pd.to_numeric(df["longitude"], errors="coerce")
-    mask = lat.notna() & lon.notna()
-    return pd.DataFrame({"latitude": lat[mask], "longitude": lon[mask]})
+    Retornos:
+        MAPA_CondRet.OK    (1): mapa gerado e salvo em HTML.
+        MAPA_CondRet.FALHA (0): base ativa vazia (abortado).
+        MAPA_CondRet.ERRO (-1): coordenadas ausentes/corrompidas (nenhum ponto
+            válido a desenhar).
 
-
-def _novo_mapa(pontos: pd.DataFrame) -> folium.Map:
-    """Cria um folium.Map centralizado na média das coordenadas."""
-    centro = [pontos["latitude"].mean(), pontos["longitude"].mean()]
-    return folium.Map(location=centro, zoom_start=12)
-
-
-def plot_bubbleMap(df: pd.DataFrame) -> bool:
+    Assertiva de saída: em caso de OK, existe um arquivo HTML com as bolhas.
     """
-    Objetivo: gerar um bubble map em que o tamanho de cada bolha representa a
-        quantidade de ocorrências naquela localização.
+    tem_registro, pontos = _coletar_pontos()
+    if not tem_registro:
+        return MAPA_CondRet.FALHA
+    if not pontos:
+        return MAPA_CondRet.ERRO
 
-    Acoplamento:
-        df      (entrada): pd.DataFrame com colunas 'latitude' e 'longitude'.
-        retorno (saída): bool indicando se o mapa foi gerado.
+    def desenhar(mapa):
+        agrupado = {}
+        for lat, lon in pontos:
+            agrupado[(lat, lon)] = agrupado.get((lat, lon), 0) + 1
+        for (lat, lon), qtd in agrupado.items():
+            folium.CircleMarker(
+                location=[lat, lon], radius=4 + qtd * 2,
+                popup=f"{qtd} ocorrência(s)", color="crimson",
+                fill=True, fill_opacity=0.5,
+            ).add_to(mapa)
 
-    Retornos / exceções:
-        True : o mapa foi gerado e salvo em arquivo HTML com sucesso.
-        False: não havia nenhum ponto válido a desenhar (tabela vazia ou
-            todas as coordenadas nulas/inválidas). A renderização é abortada.
-        KeyError: as colunas 'latitude'/'longitude' não existem na tabela.
+    _gerar(pontos, desenhar, "mapa_bubble.html")
+    return MAPA_CondRet.OK
 
-    Assertiva de entrada: df contém zero ou mais ocorrências.
-    Assertiva de saída: se True, existe um arquivo HTML com as bolhas; linhas
-        com coordenadas inválidas são ignoradas.
+
+def plot_heatMap() -> int:
     """
-    pontos = _coords_validas(df)
-    if pontos.empty:
-        return False
+    Objetivo: gerar um heat map evidenciando, por gradiente de cor, a
+        concentração de ocorrências, consumindo as coordenadas da visão ativa.
 
-    mapa = _novo_mapa(pontos)
-    agrupado = pontos.groupby(["latitude", "longitude"]).size().reset_index(name="qtd")
-    for _, linha in agrupado.iterrows():
-        folium.CircleMarker(
-            location=[linha["latitude"], linha["longitude"]],
-            radius=4 + linha["qtd"] * 2,
-            popup=f"{int(linha['qtd'])} ocorrência(s)",
-            color="crimson",
-            fill=True,
-            fill_opacity=0.5,
-        ).add_to(mapa)
+    Retornos:
+        MAPA_CondRet.OK    (1): mapa gerado e salvo em HTML.
+        MAPA_CondRet.FALHA (0): base ativa vazia (abortado).
+        MAPA_CondRet.ERRO (-1): coordenadas ausentes/corrompidas.
 
-    mapa.save(os.path.join(_dir_saida, "mapa_bubble.html"))
-    return True
-
-
-def plot_heatMap(df: pd.DataFrame) -> bool:
+    Assertiva de saída: em caso de OK, existe um arquivo HTML com o mapa de calor.
     """
-    Objetivo: gerar um heat map evidenciando, por gradiente de cor, as regiões
-        com maior concentração de ocorrências.
+    tem_registro, pontos = _coletar_pontos()
+    if not tem_registro:
+        return MAPA_CondRet.FALHA
+    if not pontos:
+        return MAPA_CondRet.ERRO
 
-    Acoplamento:
-        df      (entrada): pd.DataFrame com colunas 'latitude' e 'longitude'.
-        retorno (saída): bool indicando se o mapa foi gerado.
+    _gerar(pontos, lambda mapa: HeatMap([list(p) for p in pontos]).add_to(mapa),
+           "mapa_heat.html")
+    return MAPA_CondRet.OK
 
-    Retornos / exceções:
-        True : o mapa foi gerado e salvo em arquivo HTML com sucesso.
-        False: não havia nenhum ponto válido a desenhar.
-        KeyError: as colunas 'latitude'/'longitude' não existem na tabela.
 
-    Assertiva de entrada: df contém zero ou mais ocorrências.
-    Assertiva de saída: se True, existe um arquivo HTML com o mapa de calor.
+def plot_scatterPlotMap() -> int:
     """
-    pontos = _coords_validas(df)
-    if pontos.empty:
-        return False
+    Objetivo: gerar um scatter plot map com a localização pontual de cada
+        ocorrência, consumindo as coordenadas da visão ativa.
 
-    mapa = _novo_mapa(pontos)
-    HeatMap(pontos[["latitude", "longitude"]].values.tolist()).add_to(mapa)
-    mapa.save(os.path.join(_dir_saida, "mapa_heat.html"))
-    return True
+    Retornos:
+        MAPA_CondRet.OK    (1): mapa gerado e salvo em HTML.
+        MAPA_CondRet.FALHA (0): base ativa vazia (abortado).
+        MAPA_CondRet.ERRO (-1): coordenadas ausentes/corrompidas.
 
-
-def plot_scatterPlotMap(df: pd.DataFrame) -> bool:
-    """
-    Objetivo: gerar um scatter plot map exibindo a localização pontual de cada
-        ocorrência sobre o mapa da cidade.
-
-    Acoplamento:
-        df      (entrada): pd.DataFrame com colunas 'latitude' e 'longitude'.
-        retorno (saída): bool indicando se o mapa foi gerado.
-
-    Retornos / exceções:
-        True : o mapa foi gerado e salvo em arquivo HTML com sucesso.
-        False: não havia nenhum ponto válido a desenhar.
-        KeyError: as colunas 'latitude'/'longitude' não existem na tabela.
-
-    Assertiva de entrada: df contém zero ou mais ocorrências.
-    Assertiva de saída: se True, existe um arquivo HTML com um ponto por
+    Assertiva de saída: em caso de OK, existe um arquivo HTML com um ponto por
         ocorrência válida.
     """
-    pontos = _coords_validas(df)
-    if pontos.empty:
-        return False
+    tem_registro, pontos = _coletar_pontos()
+    if not tem_registro:
+        return MAPA_CondRet.FALHA
+    if not pontos:
+        return MAPA_CondRet.ERRO
 
-    mapa = _novo_mapa(pontos)
-    for _, linha in pontos.iterrows():
-        folium.CircleMarker(
-            location=[linha["latitude"], linha["longitude"]],
-            radius=3,
-            color="blue",
-            fill=True,
-            fill_opacity=0.7,
-        ).add_to(mapa)
+    def desenhar(mapa):
+        for lat, lon in pontos:
+            folium.CircleMarker(
+                location=[lat, lon], radius=3, color="blue",
+                fill=True, fill_opacity=0.7,
+            ).add_to(mapa)
 
-    mapa.save(os.path.join(_dir_saida, "mapa_scatter.html"))
-    return True
+    _gerar(pontos, desenhar, "mapa_scatter.html")
+    return MAPA_CondRet.OK

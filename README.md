@@ -8,7 +8,9 @@ scatter plot map) e destaca os bairros em alerta e o crime predominante.
 
 ## Arquitetura modular
 
-Cada TAD é um módulo (um arquivo `.py`) que expõe apenas funções de acesso:
+Cada TAD é um módulo (um arquivo `.py`) que **encapsula seu estado** em variáveis
+de módulo prefixadas com `_` e expõe **apenas funções de acesso** e um `IntEnum`
+de retorno:
 
 | Módulo         | Arquivo        | Responsabilidade                                  |
 |----------------|----------------|---------------------------------------------------|
@@ -18,6 +20,19 @@ Cada TAD é um módulo (um arquivo `.py`) que expõe apenas funções de acesso:
 | Mapa           | `mapa.py`      | Gerar bubble map, heat map e scatter plot map     |
 | Destaques      | `destaques.py` | Bairro em alerta e crime predominante por bairro  |
 | Main           | `main.py`      | Orquestrar o fluxo e a interface com o usuário     |
+
+### Encapsulamento (tipo opaco)
+
+O `pd.DataFrame` (base original + visão ativa após filtros) fica **totalmente
+escondido** dentro do módulo Dataframe. Nenhum outro módulo recebe, lê ou altera
+a tabela: todo o tráfego ocorre por **cópias de tipos primitivos** (str, int,
+float) através das interfaces. Os módulos estatísticos e de mapa consomem os
+dados registro a registro via `dataframe.obter_registro(indice)`.
+
+Os erros previstos **não viram exceção**: cada função devolve um **código de
+retorno** (`IntEnum`), em geral `1` (sucesso), `0` (falha prevista), `-1` (erro)
+e `-2` (coordenadas fora dos limites). As interfaces que no C usariam ponteiros
+de saída retornam aqui uma tupla `(codigo, valores...)`.
 
 ## Instalação
 

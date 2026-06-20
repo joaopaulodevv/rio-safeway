@@ -1,92 +1,117 @@
 """
 Módulo Período — Rio SafeWay.
 
-TAD responsável pelo recorte temporal das ocorrências. Valida o intervalo de
-datas informado pelo usuário e, sendo ele consistente, devolve apenas as
-ocorrências registradas naquele período. Atua como camada intermediária entre
-os dados brutos (módulo Dataframe) e os módulos de análise (Crime, Mapa,
-Destaques), garantindo que nada fora do recorte chegue aos próximos módulos.
+TAD controlador da regra temporal. Encapsula apenas as variáveis de estado do
+filtro ativo (data de início e fim) e valida as regras de calendário. NÃO
+guarda dados: quando um período é válido, ordena ao módulo Dataframe que reduza
+a visão ativa, através da interface segura `aplicar_filtro_interno`.
 
-Padrão da disciplina: módulo procedural que expõe apenas funções de acesso.
-Opera sobre o pd.DataFrame recebido como valor; não mantém estado próprio.
+Padrão da disciplina: módulo procedural; estado em variáveis `_` de módulo;
+expõe só funções de acesso e o IntEnum de retorno. As datas trafegam como
+strings (primitivos).
 """
+
+from enum import IntEnum
 
 import pandas as pd
 
+import dataframe
 
-def valida_periodo(df: pd.DataFrame, inicio, fim) -> bool:
+
+class PER_CondRet(IntEnum):
+    """Códigos de retorno do módulo Período."""
+    OK = 1     # período válido / filtro aplicado com ocorrências
+    FALHA = 0  # datas invertidas/limite de 1 dia / falha de validação
+    ERRO = -1  # erro de tipagem/formato / aplicado sem ocorrências
+
+
+# --- estado encapsulado: regra temporal ativa ---
+_data_inicio_ativa = None
+_data_fim_ativa = None
+
+
+def resetar() -> None:
+    """Zera o estado do filtro temporal (apoio aos testes)."""
+    global _data_inicio_ativa, _data_fim_ativa
+    _data_inicio_ativa = None
+    _data_fim_ativa = None
+
+
+def valida_periodo(inicio, fim) -> int:
     """
-    Objetivo: verificar se o intervalo [inicio, fim] é consistente e faz
-        sentido para o conjunto de dados fornecido.
+    Objetivo: validar as regras de calendário de um intervalo de datas.
 
     Acoplamento:
-        df      (entrada): pd.DataFrame de ocorrências (com a coluna 'data').
-        inicio  (entrada): pd.Timestamp de início do período.
-        fim     (entrada): pd.Timestamp de fim do período.
-        retorno (saída): bool indicando a validade do período.
+        inicio (entrada): string de data inicial (ex.: '2026-01-01').
+        fim    (entrada): string de data final.
 
-    Retornos / exceções:
-        True : o período é válido — início <= fim e o intervalo intersecta a
-            faixa de datas presente no DataFrame.
-        False: início ocorre depois do fim; alguma data é nula; o DataFrame é
-            vazio/sem coluna 'data'; ou o intervalo está totalmente fora da
-            faixa de datas dos dados.
-        TypeError: inicio ou fim não são pd.Timestamp.
+    Retornos:
+        PER_CondRet.OK    (1): período lógico e válido (inicio < fim).
+        PER_CondRet.FALHA (0): datas invertidas (inicio > fim) ou limite de um
+            único dia (inicio == fim).
+        PER_CondRet.ERRO (-1): erro de tipagem ou formato inválido.
 
-    Assertiva de entrada: df contém zero ou mais ocorrências.
-    Assertiva de saída: o valor retornado reflete a consistência do período
-        frente aos dados.
+    Assertiva de entrada: inicio e fim deveriam ser strings de data.
+    Assertiva de saída: o valor reflete apenas a consistência de calendário
+        (não consulta os dados).
     """
-    if inicio is None or fim is None:
-        return False
+    if not isinstance(inicio, str) or not isinstance(fim, str):
+        return PER_CondRet.ERRO
+    try:
+        ts_inicio = pd.Timestamp(inicio)
+        ts_fim = pd.Timestamp(fim)
+    except (ValueError, TypeError):
+        return PER_CondRet.ERRO
+    if pd.isna(ts_inicio) or pd.isna(ts_fim):
+        return PER_CondRet.ERRO
 
-    if not isinstance(inicio, pd.Timestamp) or not isinstance(fim, pd.Timestamp):
-        raise TypeError("inicio e fim devem ser objetos pd.Timestamp.")
-
-    if inicio > fim:
-        return False
-
-    if df is None or df.empty or "data" not in df.columns:
-        return False
-
-    data_min = df["data"].min()
-    data_max = df["data"].max()
-    if pd.isna(data_min) or pd.isna(data_max):
-        return False
-
-    # O período precisa intersectar a faixa de datas existente nos dados.
-    if fim < data_min or inicio > data_max:
-        return False
-
-    return True
+    if ts_inicio >= ts_fim:
+        return PER_CondRet.FALHA
+    return PER_CondRet.OK
 
 
-def filtra_dfPeriodo(df: pd.DataFrame, inicio, fim) -> pd.DataFrame:
+def aplicar_filtro_periodo(inicio, fim) -> int:
     """
-    Objetivo: recortar a tabela, mantendo apenas as ocorrências cuja data
-        esteja dentro do intervalo [inicio, fim].
+    Objetivo: validar as datas e, em caso de sucesso, ordenar ao Dataframe que
+        reduza a visão ativa ao intervalo informado.
 
     Acoplamento:
-        df      (entrada): pd.DataFrame de ocorrências (com a coluna 'data').
-        inicio  (entrada): pd.Timestamp de início do período.
-        fim     (entrada): pd.Timestamp de fim do período.
-        retorno (saída): pd.DataFrame recortado.
+        inicio (entrada): string de data inicial.
+        fim    (entrada): string de data final.
 
-    Retornos / exceções:
-        pd.DataFrame: novo DataFrame em que data >= inicio e data <= fim.
-            Pode vir vazio (período sem ocorrências), mantendo as colunas.
-            Se o período for inválido (ver valida_periodo), devolve o
-            DataFrame original inalterado e emite uma mensagem ao usuário.
-        TypeError: inicio ou fim não são pd.Timestamp (propagado de
-            valida_periodo).
+    Retornos:
+        PER_CondRet.OK    (1): filtro validado e aplicado, restaram ocorrências.
+        PER_CondRet.FALHA (0): falha na validação das datas.
+        PER_CondRet.ERRO (-1): validado e aplicado, mas a base resultou em zero
+            ocorrências.
 
-    Assertiva de entrada: df contém zero ou mais ocorrências.
-    Assertiva de saída: em caso de recorte, toda linha do resultado satisfaz
-        inicio <= data <= fim e as colunas são preservadas.
+    Assertiva de saída: em caso de OK/ERRO, o estado temporal ativo guarda
+        inicio e fim, e a visão ativa do Dataframe reflete o recorte.
     """
-    if not valida_periodo(df, inicio, fim):
-        print("Período não válido.")
-        return df
+    global _data_inicio_ativa, _data_fim_ativa
+    if valida_periodo(inicio, fim) != PER_CondRet.OK:
+        return PER_CondRet.FALHA
 
-    mask = (df["data"] >= inicio) & (df["data"] <= fim)
-    return df[mask].reset_index(drop=True)
+    _data_inicio_ativa = inicio
+    _data_fim_ativa = fim
+    codigo = dataframe.aplicar_filtro_interno("data", inicio, fim)
+    if codigo == dataframe.DF_CondRet.OK:
+        return PER_CondRet.OK
+    return PER_CondRet.ERRO
+
+
+def limpar_filtro_periodo() -> int:
+    """
+    Objetivo: resetar o filtro temporal e ordenar ao Dataframe que restaure a
+        visão completa.
+
+    Retornos:
+        PER_CondRet.OK (1): estado resetado e visão restaurada.
+
+    Assertiva de saída: o estado temporal ativo fica indefinido.
+    """
+    global _data_inicio_ativa, _data_fim_ativa
+    _data_inicio_ativa = None
+    _data_fim_ativa = None
+    dataframe.restaurar_visao()
+    return PER_CondRet.OK
