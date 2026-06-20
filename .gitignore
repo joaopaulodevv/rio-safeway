@@ -10,3 +10,6 @@ __pycache__/
 mapa_bubble.html
 mapa_heat.html
 mapa_scatter.html
+
+# Estado persistido em runtime (gerado entre execuções)
+estado_rio_safeway.csv

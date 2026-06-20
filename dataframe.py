@@ -111,6 +111,61 @@ def carregar_dados(nome_arq: str) -> int:
     return DF_CondRet.OK
 
 
+def gravar(caminho: str) -> int:
+    """
+    Objetivo: gravar em arquivo todo o estado encapsulado (base de ocorrências),
+        ao final da execução, para recuperação em uma nova execução.
+
+    Acoplamento:
+        caminho (entrada): caminho do arquivo de persistência (CSV).
+
+    Retornos:
+        DF_CondRet.OK    (1): estado gravado com sucesso.
+        DF_CondRet.FALHA (0): não há base carregada para gravar.
+
+    Assertiva de entrada: a base existe (ou é None).
+    Assertiva de saída: em caso de OK, o arquivo contém todas as ocorrências
+        encapsuladas, incluindo a coluna 'bairro' se já processada.
+    """
+    if _df_original is None:
+        return DF_CondRet.FALHA
+    _df_original.to_csv(caminho, index=False)
+    return DF_CondRet.OK
+
+
+def recuperar(caminho: str) -> int:
+    """
+    Objetivo: recuperar o estado encapsulado gravado em uma execução anterior,
+        ao iniciar a aplicação.
+
+    Acoplamento:
+        caminho (entrada): caminho do arquivo de persistência (CSV).
+
+    Retornos:
+        DF_CondRet.OK    (1): estado recuperado com sucesso.
+        DF_CondRet.FALHA (0): arquivo inexistente (primeira execução).
+        DF_CondRet.ERRO (-1): arquivo de persistência corrompido/inválido.
+
+    Assertiva de saída: em caso de OK, a base e a visão ativa contêm exatamente
+        as ocorrências gravadas, com 'data' convertida para datetime.
+    """
+    global _df_original, _df_ativo
+    try:
+        df = pd.read_csv(caminho)
+    except FileNotFoundError:
+        return DF_CondRet.FALHA
+    except Exception:
+        return DF_CondRet.ERRO
+
+    if any(coluna not in df.columns for coluna in COLUNAS_OBRIGATORIAS):
+        return DF_CondRet.ERRO
+
+    df["data"] = pd.to_datetime(df["data"], errors="coerce")
+    _df_original = df
+    _df_ativo = df.copy()
+    return DF_CondRet.OK
+
+
 def filtra_dados_invalidos() -> int:
     """
     Objetivo: limpar a base, removendo registros com 'data', 'latitude' ou

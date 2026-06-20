@@ -97,6 +97,7 @@ def plot_bubbleMap() -> int:
         return MAPA_CondRet.ERRO
 
     def desenhar(mapa):
+        """Hotspot: desenha as bolhas agregadas por coordenada no mapa."""
         agrupado = {}
         for lat, lon in pontos:
             agrupado[(lat, lon)] = agrupado.get((lat, lon), 0) + 1
@@ -154,6 +155,7 @@ def plot_scatterPlotMap() -> int:
         return MAPA_CondRet.ERRO
 
     def desenhar(mapa):
+        """Hotspot: desenha um ponto por ocorrência válida no mapa."""
         for lat, lon in pontos:
             folium.CircleMarker(
                 location=[lat, lon], radius=3, color="blue",

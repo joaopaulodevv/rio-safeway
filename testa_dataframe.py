@@ -168,6 +168,31 @@ class TestAplicarFiltroInterno(unittest.TestCase):
         self.assertEqual(_contar_ativo(), 3)
 
 
+class TestPersistencia(unittest.TestCase):
+    def test_gravar_e_recuperar(self):
+        _carregar()
+        dataframe.processar_coluna_bairros()
+        dataframe.adiciona_dado("2025-01-01", -22.97, -43.18, "Roubo")
+        self.assertEqual(_contar_ativo(), 7)
+        caminho = os.path.join(tempfile.mkdtemp(), "estado.csv")
+        self.assertEqual(dataframe.gravar(caminho), dataframe.DF_CondRet.OK)
+
+        dataframe.resetar()
+        self.assertEqual(dataframe.obter_registro(0)[0], dataframe.DF_CondRet.FALHA)
+        self.assertEqual(dataframe.recuperar(caminho), dataframe.DF_CondRet.OK)
+        self.assertEqual(_contar_ativo(), 7)
+
+    def test_recuperar_arquivo_inexistente(self):
+        dataframe.resetar()
+        self.assertEqual(dataframe.recuperar("/nao/existe/estado.csv"),
+                         dataframe.DF_CondRet.FALHA)
+
+    def test_gravar_base_vazia(self):
+        dataframe.resetar()
+        caminho = os.path.join(tempfile.mkdtemp(), "estado.csv")
+        self.assertEqual(dataframe.gravar(caminho), dataframe.DF_CondRet.FALHA)
+
+
 class TestObterRegistro(unittest.TestCase):
     def setUp(self):
         _carregar()

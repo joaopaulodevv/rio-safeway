@@ -34,6 +34,16 @@ retorno** (`IntEnum`), em geral `1` (sucesso), `0` (falha prevista), `-1` (erro)
 e `-2` (coordenadas fora dos limites). As interfaces que no C usariam ponteiros
 de saída retornam aqui uma tupla `(codigo, valores...)`.
 
+### Persistência entre execuções
+
+O módulo Dataframe expõe `gravar(caminho)` e `recuperar(caminho)`. O `main.py`
+chama `recuperar` ao iniciar e `gravar` ao sair (e na opção "Salvar dados"),
+gravando o estado em `estado_rio_safeway.csv`. Na primeira execução, sem arquivo
+de estado, carrega a base inicial `dados_crimes.csv`. Assim, ocorrências
+adicionadas/removidas persistem de uma execução para a outra. Em runtime nada é
+lido/escrito em arquivo como armazenamento de trabalho — os dados vivem em
+memória encapsulada e só migram para o arquivo ao sair.
+
 ## Instalação
 
 ```bash
