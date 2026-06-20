@@ -63,8 +63,14 @@ Os mapas são gravados como arquivos HTML (`mapa_bubble.html`, `mapa_heat.html`,
 
 ## Testes
 
-Cada módulo possui seu programa testador (`testa_<modulo>.py`):
+Cada módulo possui seu programa testador (`testa_<modulo>.py`). Os testes são
+escritos como **funções** (não classes), montados em uma `TestSuite` com
+`unittest.FunctionTestCase` e executados por arquivo:
 
 ```bash
-python -m unittest testa_dataframe testa_periodo testa_crime testa_mapa testa_destaques
+python testa_dataframe.py
+python testa_periodo.py
+python testa_crime.py
+python testa_mapa.py
+python testa_destaques.py
 ```

@@ -1,10 +1,8 @@
-"""
-Programa testador do módulo Destaques — Rio SafeWay.
-
-Cobre os códigos de retorno de calcular_bairro_alerta, obter_bairro_alerta,
-calcular_top_crime_pbairro e obter_top_crime_pbairro. Reinicia Dataframe, Crime
-e Destaques a cada teste e carrega conjuntos específicos.
-"""
+# testa_destaques.py - testes (por funções) do módulo destaques.py
+#
+# Cada caso de teste é uma função teste_*() que prepara o estado e devolve o
+# valor a ser verificado. Reinicia Dataframe, Crime e Destaques e carrega
+# conjuntos específicos para cada cenário.
 
 import os
 import tempfile
@@ -12,7 +10,7 @@ import unittest
 
 import crime
 import dataframe
-import destaques
+from destaques import *
 
 # Copa 3 (Roubo,Furto,Furto), Centro 2 (Furto,Roubo), Desconhecido 1 -> média 2
 SAMPLE_MULTI = (
@@ -47,67 +45,94 @@ SAMPLE_EMPATE = (
 )
 
 
-def _carregar(texto):
+def carregar_sample(texto):
+    """Reseta Dataframe, Crime e Destaques e carrega o CSV informado."""
     caminho = os.path.join(tempfile.mkdtemp(), "dados.csv")
     with open(caminho, "w", encoding="utf-8") as f:
         f.write(texto)
     dataframe.resetar()
     crime.resetar()
-    destaques.resetar()
+    resetar()
     dataframe.carregar_dados(caminho)
     dataframe.filtra_dados_invalidos()
     dataframe.processar_coluna_bairros()
 
 
-class TestCalcularBairroAlerta(unittest.TestCase):
-    def test_bairro_identificado(self):
-        _carregar(SAMPLE_MULTI)
-        self.assertEqual(destaques.calcular_bairro_alerta(), destaques.DEST_CondRet.OK)
-        self.assertEqual(destaques.obter_bairro_alerta(),
-                         (destaques.DEST_CondRet.OK, "Copacabana", 3))
+# ---------------- calcular_bairro_alerta / obter_bairro_alerta ----------------
 
-    def test_nenhum_acima_da_media(self):
-        _carregar(SAMPLE_IGUAL)
-        self.assertEqual(destaques.calcular_bairro_alerta(), destaques.DEST_CondRet.FALHA)
-
-    def test_um_unico_bairro(self):
-        _carregar(SAMPLE_UM_BAIRRO)
-        self.assertEqual(destaques.calcular_bairro_alerta(), destaques.DEST_CondRet.ERRO)
+def teste_bairro_alerta_identificado():
+    carregar_sample(SAMPLE_MULTI)
+    return calcular_bairro_alerta()
 
 
-class TestObterBairroAlerta(unittest.TestCase):
-    def test_antes_de_calcular(self):
-        destaques.resetar()
-        self.assertEqual(destaques.obter_bairro_alerta(),
-                         (destaques.DEST_CondRet.FALHA, None, 0))
+def teste_bairro_alerta_valor():
+    carregar_sample(SAMPLE_MULTI)
+    calcular_bairro_alerta()
+    return obter_bairro_alerta()
 
 
-class TestCalcularTopCrimePbairro(unittest.TestCase):
-    def test_bairro_existente(self):
-        _carregar(SAMPLE_MULTI)
-        self.assertEqual(destaques.calcular_top_crime_pbairro("Copacabana"),
-                         destaques.DEST_CondRet.OK)
-        self.assertEqual(destaques.obter_top_crime_pbairro("Copacabana"),
-                         (destaques.DEST_CondRet.OK, "Furto"))
-
-    def test_empate(self):
-        _carregar(SAMPLE_EMPATE)
-        destaques.calcular_top_crime_pbairro("Copacabana")
-        self.assertEqual(destaques.obter_top_crime_pbairro("Copacabana"),
-                         (destaques.DEST_CondRet.OK, "Furto e Roubo"))
-
-    def test_bairro_inexistente(self):
-        _carregar(SAMPLE_MULTI)
-        self.assertEqual(destaques.calcular_top_crime_pbairro("Atlântida"),
-                         destaques.DEST_CondRet.FALHA)
+def teste_bairro_alerta_nenhum():
+    carregar_sample(SAMPLE_IGUAL)
+    return calcular_bairro_alerta()
 
 
-class TestObterTopCrimePbairro(unittest.TestCase):
-    def test_antes_de_calcular(self):
-        destaques.resetar()
-        self.assertEqual(destaques.obter_top_crime_pbairro("Copacabana"),
-                         (destaques.DEST_CondRet.FALHA, None))
+def teste_bairro_alerta_um_bairro():
+    carregar_sample(SAMPLE_UM_BAIRRO)
+    return calcular_bairro_alerta()
+
+
+def teste_obter_alerta_antes_de_calcular():
+    resetar()
+    return obter_bairro_alerta()
+
+
+# ---------------- calcular/obter_top_crime_pbairro ----------------
+
+def teste_top_crime_existente():
+    carregar_sample(SAMPLE_MULTI)
+    calcular_top_crime_pbairro("Copacabana")
+    return obter_top_crime_pbairro("Copacabana")
+
+
+def teste_top_crime_empate():
+    carregar_sample(SAMPLE_EMPATE)
+    calcular_top_crime_pbairro("Copacabana")
+    return obter_top_crime_pbairro("Copacabana")
+
+
+def teste_top_crime_inexistente():
+    carregar_sample(SAMPLE_MULTI)
+    return calcular_top_crime_pbairro("Atlântida")
+
+
+def teste_obter_top_antes_de_calcular():
+    resetar()
+    return obter_top_crime_pbairro("Copacabana")
+
+
+def verifica(funcao, esperado):
+    retorno = funcao()
+    assert retorno == esperado, f"esperado {esperado!r}, obtido {retorno!r}"
+
+
+def monta_testes():
+    testes = unittest.TestSuite()
+    casos = [
+        (teste_bairro_alerta_identificado, DEST_CondRet.OK),
+        (teste_bairro_alerta_valor, (DEST_CondRet.OK, "Copacabana", 3)),
+        (teste_bairro_alerta_nenhum, DEST_CondRet.FALHA),
+        (teste_bairro_alerta_um_bairro, DEST_CondRet.ERRO),
+        (teste_obter_alerta_antes_de_calcular, (DEST_CondRet.FALHA, None, 0)),
+        (teste_top_crime_existente, (DEST_CondRet.OK, "Furto")),
+        (teste_top_crime_empate, (DEST_CondRet.OK, "Furto e Roubo")),
+        (teste_top_crime_inexistente, DEST_CondRet.FALHA),
+        (teste_obter_top_antes_de_calcular, (DEST_CondRet.FALHA, None)),
+    ]
+    for funcao, esperado in casos:
+        testes.addTest(unittest.FunctionTestCase(
+            lambda f=funcao, e=esperado: verifica(f, e)))
+    return testes
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.TextTestRunner(verbosity=2).run(monta_testes())

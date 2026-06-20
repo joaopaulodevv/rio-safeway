@@ -1,17 +1,15 @@
-"""
-Programa testador do módulo Período — Rio SafeWay.
-
-Cobre os códigos de retorno de valida_periodo, aplicar_filtro_periodo e
-limpar_filtro_periodo. O Dataframe é reiniciado e carregado a cada teste, pois
-o filtro de período opera sobre a visão ativa por meio dele.
-"""
+# testa_periodo.py - testes (por funções) do módulo periodo.py
+#
+# Cada caso de teste é uma função teste_*() que prepara o estado e devolve o
+# valor a ser verificado. O Dataframe é reiniciado e carregado quando o teste
+# precisa da visão ativa (o filtro de período opera sobre ela).
 
 import os
 import tempfile
 import unittest
 
 import dataframe
-import periodo
+from periodo import *
 
 SAMPLE = (
     "data,latitude,longitude,tipo_crime\n"
@@ -21,75 +19,107 @@ SAMPLE = (
 )
 
 
-def _carregar():
+def carregar_sample():
+    """Reseta Dataframe e Período e carrega o CSV de exemplo."""
     caminho = os.path.join(tempfile.mkdtemp(), "dados.csv")
     with open(caminho, "w", encoding="utf-8") as f:
         f.write(SAMPLE)
     dataframe.resetar()
-    periodo.resetar()
+    resetar()
     dataframe.carregar_dados(caminho)
     dataframe.processar_coluna_bairros()
 
 
-def _contar_ativo():
+def contar_ativo():
     qtd = 0
     while dataframe.obter_registro(qtd)[0] == dataframe.DF_CondRet.OK:
         qtd += 1
     return qtd
 
 
-class TestValidaPeriodo(unittest.TestCase):
-    def test_periodo_valido(self):
-        self.assertEqual(periodo.valida_periodo("2024-01-01", "2024-12-31"),
-                         periodo.PER_CondRet.OK)
+# ---------------- valida_periodo ----------------
 
-    def test_datas_invertidas(self):
-        self.assertEqual(periodo.valida_periodo("2024-12-31", "2024-01-01"),
-                         periodo.PER_CondRet.FALHA)
-
-    def test_limite_um_dia(self):
-        self.assertEqual(periodo.valida_periodo("2024-05-15", "2024-05-15"),
-                         periodo.PER_CondRet.FALHA)
-
-    def test_tipagem_incorreta(self):
-        self.assertEqual(periodo.valida_periodo(123, 456), periodo.PER_CondRet.ERRO)
-
-    def test_formato_invalido(self):
-        self.assertEqual(periodo.valida_periodo("ontem", "hoje"),
-                         periodo.PER_CondRet.ERRO)
-
-    def test_parametros_nulos(self):
-        self.assertEqual(periodo.valida_periodo(None, "2024-12-31"),
-                         periodo.PER_CondRet.ERRO)
+def teste_valida_periodo_valido():
+    return valida_periodo("2024-01-01", "2024-12-31")
 
 
-class TestAplicarFiltroPeriodo(unittest.TestCase):
-    def setUp(self):
-        _carregar()
-
-    def test_aplicado_com_ocorrencias(self):
-        self.assertEqual(periodo.aplicar_filtro_periodo("2024-01-01", "2024-12-31"),
-                         periodo.PER_CondRet.OK)
-        self.assertEqual(_contar_ativo(), 3)
-
-    def test_falha_validacao(self):
-        self.assertEqual(periodo.aplicar_filtro_periodo("2024-12-31", "2024-01-01"),
-                         periodo.PER_CondRet.FALHA)
-
-    def test_aplicado_sem_ocorrencias(self):
-        self.assertEqual(periodo.aplicar_filtro_periodo("2030-01-01", "2030-12-31"),
-                         periodo.PER_CondRet.ERRO)
-        self.assertEqual(_contar_ativo(), 0)
+def teste_valida_datas_invertidas():
+    return valida_periodo("2024-12-31", "2024-01-01")
 
 
-class TestLimparFiltroPeriodo(unittest.TestCase):
-    def test_restaura_visao(self):
-        _carregar()
-        periodo.aplicar_filtro_periodo("2030-01-01", "2030-12-31")
-        self.assertEqual(_contar_ativo(), 0)
-        self.assertEqual(periodo.limpar_filtro_periodo(), periodo.PER_CondRet.OK)
-        self.assertEqual(_contar_ativo(), 3)
+def teste_valida_limite_um_dia():
+    return valida_periodo("2024-05-15", "2024-05-15")
+
+
+def teste_valida_tipagem():
+    return valida_periodo(123, 456)
+
+
+def teste_valida_formato():
+    return valida_periodo("ontem", "hoje")
+
+
+def teste_valida_nulo():
+    return valida_periodo(None, "2024-12-31")
+
+
+# ---------------- aplicar_filtro_periodo ----------------
+
+def teste_aplicar_com_ocorrencias():
+    carregar_sample()
+    return aplicar_filtro_periodo("2024-01-01", "2024-12-31")
+
+
+def teste_aplicar_conta():
+    carregar_sample()
+    aplicar_filtro_periodo("2024-01-01", "2024-12-31")
+    return contar_ativo()
+
+
+def teste_aplicar_falha_validacao():
+    carregar_sample()
+    return aplicar_filtro_periodo("2024-12-31", "2024-01-01")
+
+
+def teste_aplicar_sem_ocorrencias():
+    carregar_sample()
+    return aplicar_filtro_periodo("2030-01-01", "2030-12-31")
+
+
+# ---------------- limpar_filtro_periodo ----------------
+
+def teste_limpar_restaura():
+    carregar_sample()
+    aplicar_filtro_periodo("2030-01-01", "2030-12-31")
+    limpar_filtro_periodo()
+    return contar_ativo()
+
+
+def verifica(funcao, esperado):
+    retorno = funcao()
+    assert retorno == esperado, f"esperado {esperado!r}, obtido {retorno!r}"
+
+
+def monta_testes():
+    testes = unittest.TestSuite()
+    casos = [
+        (teste_valida_periodo_valido, PER_CondRet.OK),
+        (teste_valida_datas_invertidas, PER_CondRet.FALHA),
+        (teste_valida_limite_um_dia, PER_CondRet.FALHA),
+        (teste_valida_tipagem, PER_CondRet.ERRO),
+        (teste_valida_formato, PER_CondRet.ERRO),
+        (teste_valida_nulo, PER_CondRet.ERRO),
+        (teste_aplicar_com_ocorrencias, PER_CondRet.OK),
+        (teste_aplicar_conta, 3),
+        (teste_aplicar_falha_validacao, PER_CondRet.FALHA),
+        (teste_aplicar_sem_ocorrencias, PER_CondRet.ERRO),
+        (teste_limpar_restaura, 3),
+    ]
+    for funcao, esperado in casos:
+        testes.addTest(unittest.FunctionTestCase(
+            lambda f=funcao, e=esperado: verifica(f, e)))
+    return testes
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.TextTestRunner(verbosity=2).run(monta_testes())

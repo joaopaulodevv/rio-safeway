@@ -1,18 +1,15 @@
-"""
-Programa testador do módulo Mapa — Rio SafeWay.
-
-Como plot_bubbleMap, plot_heatMap e plot_scatterPlotMap têm a mesma assinatura
-e o mesmo propósito-base, os mesmos cenários (códigos de retorno) são aplicados
-às três. Os mapas são gravados em diretório temporário. O Dataframe é
-reiniciado e carregado a cada teste, pois os mapas consomem a visão ativa.
-"""
+# testa_mapa.py - testes (por funções) do módulo mapa.py
+#
+# Como plot_bubbleMap, plot_heatMap e plot_scatterPlotMap têm a mesma assinatura
+# e propósito-base, cada caso devolve a tripla de códigos das três funções, que
+# é comparada com a tripla esperada. Os mapas são gravados em diretório temporário.
 
 import os
 import tempfile
 import unittest
 
 import dataframe
-import mapa
+from mapa import *
 
 SAMPLE = (
     "data,latitude,longitude,tipo_crime\n"
@@ -26,10 +23,11 @@ SAMPLE_SEM_COORDS = (
     "2024-02-01,,,Furto\n"
 )
 
-FUNCOES = [mapa.plot_bubbleMap, mapa.plot_heatMap, mapa.plot_scatterPlotMap]
+definir_dir_saida(tempfile.mkdtemp())
 
 
-def _carregar(texto, limpar=True):
+def carregar_sample(texto, limpar=True):
+    """Reseta o Dataframe e carrega o CSV informado."""
     caminho = os.path.join(tempfile.mkdtemp(), "dados.csv")
     with open(caminho, "w", encoding="utf-8") as f:
         f.write(texto)
@@ -39,27 +37,49 @@ def _carregar(texto, limpar=True):
         dataframe.filtra_dados_invalidos()
 
 
-class TestPlotMapas(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        mapa.definir_dir_saida(tempfile.mkdtemp())
+def codigos_dos_mapas():
+    """Roda as três funções de mapa e devolve a tripla de códigos."""
+    return (plot_bubbleMap(), plot_heatMap(), plot_scatterPlotMap())
 
-    def test_gerado_com_sucesso(self):
-        _carregar(SAMPLE)
-        for funcao in FUNCOES:
-            self.assertEqual(funcao(), mapa.MAPA_CondRet.OK, msg=funcao.__name__)
 
-    def test_base_ativa_vazia(self):
-        _carregar(SAMPLE)
-        dataframe.aplicar_filtro_interno("tipo_crime", "Sequestro", "Sequestro")
-        for funcao in FUNCOES:
-            self.assertEqual(funcao(), mapa.MAPA_CondRet.FALHA, msg=funcao.__name__)
+# ---------------- plot_bubbleMap / plot_heatMap / plot_scatterPlotMap ----------------
 
-    def test_coordenadas_corrompidas(self):
-        _carregar(SAMPLE_SEM_COORDS, limpar=False)
-        for funcao in FUNCOES:
-            self.assertEqual(funcao(), mapa.MAPA_CondRet.ERRO, msg=funcao.__name__)
+def teste_mapas_sucesso():
+    carregar_sample(SAMPLE)
+    return codigos_dos_mapas()
+
+
+def teste_mapas_base_vazia():
+    carregar_sample(SAMPLE)
+    dataframe.aplicar_filtro_interno("tipo_crime", "Sequestro", "Sequestro")
+    return codigos_dos_mapas()
+
+
+def teste_mapas_coords_corrompidas():
+    carregar_sample(SAMPLE_SEM_COORDS, limpar=False)
+    return codigos_dos_mapas()
+
+
+def verifica(funcao, esperado):
+    retorno = funcao()
+    assert retorno == esperado, f"esperado {esperado!r}, obtido {retorno!r}"
+
+
+def monta_testes():
+    testes = unittest.TestSuite()
+    ok = (MAPA_CondRet.OK, MAPA_CondRet.OK, MAPA_CondRet.OK)
+    falha = (MAPA_CondRet.FALHA, MAPA_CondRet.FALHA, MAPA_CondRet.FALHA)
+    erro = (MAPA_CondRet.ERRO, MAPA_CondRet.ERRO, MAPA_CondRet.ERRO)
+    casos = [
+        (teste_mapas_sucesso, ok),
+        (teste_mapas_base_vazia, falha),
+        (teste_mapas_coords_corrompidas, erro),
+    ]
+    for funcao, esperado in casos:
+        testes.addTest(unittest.FunctionTestCase(
+            lambda f=funcao, e=esperado: verifica(f, e)))
+    return testes
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.TextTestRunner(verbosity=2).run(monta_testes())

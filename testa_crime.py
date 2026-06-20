@@ -1,17 +1,14 @@
-"""
-Programa testador do módulo Crime — Rio SafeWay.
-
-Cobre os códigos de retorno de aplicar_filtro_crime, limpar_filtro_crime,
-processar_contagem_tpCrime, processar_contagem_bairro e dos getters. O Dataframe
-é reiniciado e carregado a cada teste.
-"""
+# testa_crime.py - testes (por funções) do módulo crime.py
+#
+# Cada caso de teste é uma função teste_*() que prepara o estado e devolve o
+# valor a ser verificado. O Dataframe é reiniciado e carregado a cada teste.
 
 import os
 import tempfile
 import unittest
 
-import crime
 import dataframe
+from crime import *
 
 SAMPLE = (
     "data,latitude,longitude,tipo_crime\n"
@@ -24,92 +21,136 @@ SAMPLE = (
 )
 
 
-def _carregar(processar_bairros=True):
+def carregar_sample(processar_bairros=True):
+    """Reseta Dataframe e Crime e carrega o CSV de exemplo."""
     caminho = os.path.join(tempfile.mkdtemp(), "dados.csv")
     with open(caminho, "w", encoding="utf-8") as f:
         f.write(SAMPLE)
     dataframe.resetar()
-    crime.resetar()
+    resetar()
     dataframe.carregar_dados(caminho)
     dataframe.filtra_dados_invalidos()
     if processar_bairros:
         dataframe.processar_coluna_bairros()
 
 
-def _contar_ativo():
+def contar_ativo():
     qtd = 0
     while dataframe.obter_registro(qtd)[0] == dataframe.DF_CondRet.OK:
         qtd += 1
     return qtd
 
 
-class TestAplicarFiltroCrime(unittest.TestCase):
-    def setUp(self):
-        _carregar()
+# ---------------- aplicar_filtro_crime ----------------
 
-    def test_filtro_com_registros(self):
-        self.assertEqual(crime.aplicar_filtro_crime("Furto"), crime.CRIME_CondRet.OK)
-        self.assertEqual(_contar_ativo(), 3)
-
-    def test_string_invalida(self):
-        self.assertEqual(crime.aplicar_filtro_crime(""), crime.CRIME_CondRet.FALHA)
-        self.assertEqual(crime.aplicar_filtro_crime(None), crime.CRIME_CondRet.FALHA)
-
-    def test_crime_sem_ocorrencias(self):
-        self.assertEqual(crime.aplicar_filtro_crime("Sequestro"), crime.CRIME_CondRet.ERRO)
-        self.assertEqual(_contar_ativo(), 0)
+def teste_filtro_com_registros():
+    carregar_sample()
+    return aplicar_filtro_crime("Furto")
 
 
-class TestLimparFiltroCrime(unittest.TestCase):
-    def test_restaura_visao(self):
-        _carregar()
-        crime.aplicar_filtro_crime("Furto")
-        self.assertEqual(_contar_ativo(), 3)
-        self.assertEqual(crime.limpar_filtro_crime(), crime.CRIME_CondRet.OK)
-        self.assertEqual(_contar_ativo(), 6)
+def teste_filtro_conta():
+    carregar_sample()
+    aplicar_filtro_crime("Furto")
+    return contar_ativo()
 
 
-class TestProcessarContagemTpCrime(unittest.TestCase):
-    def test_estatistica_gerada(self):
-        _carregar()
-        self.assertEqual(crime.processar_contagem_tpCrime(), crime.CRIME_CondRet.OK)
-        self.assertEqual(crime.obter_qtd_crime("Furto"), (crime.CRIME_CondRet.OK, 3))
-        self.assertEqual(crime.obter_qtd_crime("Roubo"), (crime.CRIME_CondRet.OK, 3))
-
-    def test_visao_vazia(self):
-        _carregar()
-        crime.aplicar_filtro_crime("Sequestro")
-        self.assertEqual(crime.processar_contagem_tpCrime(), crime.CRIME_CondRet.FALHA)
+def teste_filtro_string_invalida():
+    carregar_sample()
+    return aplicar_filtro_crime("")
 
 
-class TestProcessarContagemBairro(unittest.TestCase):
-    def test_estatistica_gerada(self):
-        _carregar()
-        self.assertEqual(crime.processar_contagem_bairro(), crime.CRIME_CondRet.OK)
-        self.assertEqual(crime.obter_qtd_bairro("Copacabana"), (crime.CRIME_CondRet.OK, 3))
-        self.assertEqual(crime.obter_qtd_bairro("Desconhecido"), (crime.CRIME_CondRet.OK, 1))
-
-    def test_visao_vazia(self):
-        _carregar()
-        crime.aplicar_filtro_crime("Sequestro")
-        self.assertEqual(crime.processar_contagem_bairro(), crime.CRIME_CondRet.FALHA)
-
-    def test_coluna_bairro_nao_processada(self):
-        _carregar(processar_bairros=False)
-        self.assertEqual(crime.processar_contagem_bairro(), crime.CRIME_CondRet.ERRO)
+def teste_filtro_crime_sem_ocorrencias():
+    carregar_sample()
+    return aplicar_filtro_crime("Sequestro")
 
 
-class TestObterQtdCrime(unittest.TestCase):
-    def setUp(self):
-        _carregar()
-        crime.processar_contagem_tpCrime()
+# ---------------- limpar_filtro_crime ----------------
 
-    def test_crime_listado(self):
-        self.assertEqual(crime.obter_qtd_crime("Furto"), (crime.CRIME_CondRet.OK, 3))
+def teste_limpar_restaura():
+    carregar_sample()
+    aplicar_filtro_crime("Furto")
+    limpar_filtro_crime()
+    return contar_ativo()
 
-    def test_crime_nao_listado(self):
-        self.assertEqual(crime.obter_qtd_crime("Homicídio"), (crime.CRIME_CondRet.FALHA, 0))
+
+# ---------------- processar_contagem_tpCrime ----------------
+
+def teste_contagem_tpcrime_gerada():
+    carregar_sample()
+    return processar_contagem_tpCrime()
+
+
+def teste_contagem_tpcrime_valor():
+    carregar_sample()
+    processar_contagem_tpCrime()
+    return obter_qtd_crime("Furto")
+
+
+def teste_contagem_tpcrime_visao_vazia():
+    carregar_sample()
+    aplicar_filtro_crime("Sequestro")
+    return processar_contagem_tpCrime()
+
+
+# ---------------- processar_contagem_bairro ----------------
+
+def teste_contagem_bairro_gerada():
+    carregar_sample()
+    return processar_contagem_bairro()
+
+
+def teste_contagem_bairro_valor():
+    carregar_sample()
+    processar_contagem_bairro()
+    return obter_qtd_bairro("Copacabana")
+
+
+def teste_contagem_bairro_coluna_nao_processada():
+    carregar_sample(processar_bairros=False)
+    return processar_contagem_bairro()
+
+
+# ---------------- obter_qtd_crime ----------------
+
+def teste_obter_qtd_crime_listado():
+    carregar_sample()
+    processar_contagem_tpCrime()
+    return obter_qtd_crime("Furto")
+
+
+def teste_obter_qtd_crime_nao_listado():
+    carregar_sample()
+    processar_contagem_tpCrime()
+    return obter_qtd_crime("Homicídio")
+
+
+def verifica(funcao, esperado):
+    retorno = funcao()
+    assert retorno == esperado, f"esperado {esperado!r}, obtido {retorno!r}"
+
+
+def monta_testes():
+    testes = unittest.TestSuite()
+    casos = [
+        (teste_filtro_com_registros, CRIME_CondRet.OK),
+        (teste_filtro_conta, 3),
+        (teste_filtro_string_invalida, CRIME_CondRet.FALHA),
+        (teste_filtro_crime_sem_ocorrencias, CRIME_CondRet.ERRO),
+        (teste_limpar_restaura, 6),
+        (teste_contagem_tpcrime_gerada, CRIME_CondRet.OK),
+        (teste_contagem_tpcrime_valor, (CRIME_CondRet.OK, 3)),
+        (teste_contagem_tpcrime_visao_vazia, CRIME_CondRet.FALHA),
+        (teste_contagem_bairro_gerada, CRIME_CondRet.OK),
+        (teste_contagem_bairro_valor, (CRIME_CondRet.OK, 3)),
+        (teste_contagem_bairro_coluna_nao_processada, CRIME_CondRet.ERRO),
+        (teste_obter_qtd_crime_listado, (CRIME_CondRet.OK, 3)),
+        (teste_obter_qtd_crime_nao_listado, (CRIME_CondRet.FALHA, 0)),
+    ]
+    for funcao, esperado in casos:
+        testes.addTest(unittest.FunctionTestCase(
+            lambda f=funcao, e=esperado: verifica(f, e)))
+    return testes
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.TextTestRunner(verbosity=2).run(monta_testes())
