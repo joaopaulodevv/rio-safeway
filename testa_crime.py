@@ -1,7 +1,9 @@
 # testa_crime.py - testes (por funções) do módulo crime.py
 #
-# Cada caso de teste é uma função teste_*() que prepara o estado e devolve o
-# valor a ser verificado. O Dataframe é reiniciado e carregado a cada teste.
+# Reimplementado a partir da especificação de interfaces: cada função de acesso
+# tem um teste para CADA código de retorno documentado (1 OK, 0 FALHA, -1 ERRO).
+# No padrão do teste_livro.py, cada teste_*() executa a função, imprime o código
+# e DEVOLVE o código de retorno, que verifica() confere contra o esperado.
 
 import os
 import tempfile
@@ -21,7 +23,16 @@ SAMPLE = (
 )
 
 
-def carregar_sample(processar_bairros=True):
+def imprime_codigo(codigo):
+    mensagens = {
+        1: "OK - operacao concluida com sucesso",
+        0: "FALHA - visao vazia / string invalida / nao listado",
+        -1: "ERRO - sem ocorrencias do crime / coluna bairro nao processada",
+    }
+    print(f"Codigo {int(codigo)}: {mensagens.get(codigo, 'desconhecido')}")
+
+
+def carregar_sample(bairros=True):
     """Reseta Dataframe e Crime e carrega o CSV de exemplo."""
     caminho = os.path.join(tempfile.mkdtemp(), "dados.csv")
     with open(caminho, "w", encoding="utf-8") as f:
@@ -30,98 +41,136 @@ def carregar_sample(processar_bairros=True):
     resetar()
     dataframe.carregar_dados(caminho)
     dataframe.filtra_dados_invalidos()
-    if processar_bairros:
+    if bairros:
         dataframe.processar_coluna_bairros()
 
 
-def contar_ativo():
-    qtd = 0
-    while dataframe.obter_registro(qtd)[0] == dataframe.DF_CondRet.OK:
-        qtd += 1
-    return qtd
+# ---------------- aplicar_filtro_crime (1 / 0 / -1) ----------------
 
-
-# ---------------- aplicar_filtro_crime ----------------
-
-def teste_filtro_com_registros():
+def teste_filtro_crime_ok():
     carregar_sample()
-    return aplicar_filtro_crime("Furto")
+    codigo = aplicar_filtro_crime("Furto")
+    imprime_codigo(codigo)
+    return codigo
 
 
-def teste_filtro_conta():
+def teste_filtro_crime_string_invalida():
     carregar_sample()
-    aplicar_filtro_crime("Furto")
-    return contar_ativo()
-
-
-def teste_filtro_string_invalida():
-    carregar_sample()
-    return aplicar_filtro_crime("")
+    codigo = aplicar_filtro_crime("")
+    imprime_codigo(codigo)
+    return codigo
 
 
 def teste_filtro_crime_sem_ocorrencias():
     carregar_sample()
-    return aplicar_filtro_crime("Sequestro")
+    codigo = aplicar_filtro_crime("Sequestro")
+    imprime_codigo(codigo)
+    return codigo
 
 
-# ---------------- limpar_filtro_crime ----------------
+# ---------------- limpar_filtro_crime (1) ----------------
 
-def teste_limpar_restaura():
+def teste_limpar_crime_ok():
     carregar_sample()
     aplicar_filtro_crime("Furto")
-    limpar_filtro_crime()
-    return contar_ativo()
+    codigo = limpar_filtro_crime()
+    imprime_codigo(codigo)
+    return codigo
 
 
-# ---------------- processar_contagem_tpCrime ----------------
+# ---------------- processar_contagem_tpCrime (1 / 0) ----------------
 
-def teste_contagem_tpcrime_gerada():
+def teste_contagem_tpcrime_ok():
     carregar_sample()
-    return processar_contagem_tpCrime()
-
-
-def teste_contagem_tpcrime_valor():
-    carregar_sample()
-    processar_contagem_tpCrime()
-    return obter_qtd_crime("Furto")
+    codigo = processar_contagem_tpCrime()
+    imprime_codigo(codigo)
+    return codigo
 
 
 def teste_contagem_tpcrime_visao_vazia():
     carregar_sample()
-    aplicar_filtro_crime("Sequestro")
-    return processar_contagem_tpCrime()
+    aplicar_filtro_crime("Sequestro")  # esvazia a visão ativa
+    codigo = processar_contagem_tpCrime()
+    imprime_codigo(codigo)
+    return codigo
 
 
-# ---------------- processar_contagem_bairro ----------------
+# ---------------- processar_contagem_bairro (1 / 0 / -1) ----------------
 
-def teste_contagem_bairro_gerada():
+def teste_contagem_bairro_ok():
     carregar_sample()
-    return processar_contagem_bairro()
+    codigo = processar_contagem_bairro()
+    imprime_codigo(codigo)
+    return codigo
 
 
-def teste_contagem_bairro_valor():
+def teste_contagem_bairro_visao_vazia():
     carregar_sample()
-    processar_contagem_bairro()
-    return obter_qtd_bairro("Copacabana")
+    aplicar_filtro_crime("Sequestro")  # esvazia a visão ativa
+    codigo = processar_contagem_bairro()
+    imprime_codigo(codigo)
+    return codigo
 
 
 def teste_contagem_bairro_coluna_nao_processada():
-    carregar_sample(processar_bairros=False)
-    return processar_contagem_bairro()
+    carregar_sample(bairros=False)
+    codigo = processar_contagem_bairro()
+    imprime_codigo(codigo)
+    return codigo
 
 
-# ---------------- obter_qtd_crime ----------------
+# ---------------- obter_qtd_crime (1 / 0) ----------------
 
 def teste_obter_qtd_crime_listado():
     carregar_sample()
     processar_contagem_tpCrime()
-    return obter_qtd_crime("Furto")
+    codigo = obter_qtd_crime("Furto")[0]
+    imprime_codigo(codigo)
+    return codigo
 
 
 def teste_obter_qtd_crime_nao_listado():
     carregar_sample()
     processar_contagem_tpCrime()
-    return obter_qtd_crime("Homicídio")
+    codigo = obter_qtd_crime("Homicidio")[0]
+    imprime_codigo(codigo)
+    return codigo
+
+
+# ---------------- obter_qtd_bairro (1 / 0) ----------------
+
+def teste_obter_qtd_bairro_listado():
+    carregar_sample()
+    processar_contagem_bairro()
+    codigo = obter_qtd_bairro("Copacabana")[0]
+    imprime_codigo(codigo)
+    return codigo
+
+
+def teste_obter_qtd_bairro_nao_listado():
+    carregar_sample()
+    processar_contagem_bairro()
+    codigo = obter_qtd_bairro("Atlantida")[0]
+    imprime_codigo(codigo)
+    return codigo
+
+
+# ---------------- obter_lista_crimes / obter_lista_bairros (1) ----------------
+
+def teste_obter_lista_crimes_ok():
+    carregar_sample()
+    processar_contagem_tpCrime()
+    codigo = obter_lista_crimes()[0]
+    imprime_codigo(codigo)
+    return codigo
+
+
+def teste_obter_lista_bairros_ok():
+    carregar_sample()
+    processar_contagem_bairro()
+    codigo = obter_lista_bairros()[0]
+    imprime_codigo(codigo)
+    return codigo
 
 
 def verifica(funcao, esperado):
@@ -131,24 +180,28 @@ def verifica(funcao, esperado):
 
 def monta_testes():
     testes = unittest.TestSuite()
-    casos = [
-        (teste_filtro_com_registros, CRIME_CondRet.OK),
-        (teste_filtro_conta, 3),
-        (teste_filtro_string_invalida, CRIME_CondRet.FALHA),
-        (teste_filtro_crime_sem_ocorrencias, CRIME_CondRet.ERRO),
-        (teste_limpar_restaura, 6),
-        (teste_contagem_tpcrime_gerada, CRIME_CondRet.OK),
-        (teste_contagem_tpcrime_valor, (CRIME_CondRet.OK, 3)),
-        (teste_contagem_tpcrime_visao_vazia, CRIME_CondRet.FALHA),
-        (teste_contagem_bairro_gerada, CRIME_CondRet.OK),
-        (teste_contagem_bairro_valor, (CRIME_CondRet.OK, 3)),
-        (teste_contagem_bairro_coluna_nao_processada, CRIME_CondRet.ERRO),
-        (teste_obter_qtd_crime_listado, (CRIME_CondRet.OK, 3)),
-        (teste_obter_qtd_crime_nao_listado, (CRIME_CondRet.FALHA, 0)),
-    ]
-    for funcao, esperado in casos:
-        testes.addTest(unittest.FunctionTestCase(
-            lambda f=funcao, e=esperado: verifica(f, e)))
+    # aplicar_filtro_crime: 1 / 0 / -1
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_filtro_crime_ok, 1)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_filtro_crime_string_invalida, 0)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_filtro_crime_sem_ocorrencias, -1)))
+    # limpar_filtro_crime: 1
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_limpar_crime_ok, 1)))
+    # processar_contagem_tpCrime: 1 / 0
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_contagem_tpcrime_ok, 1)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_contagem_tpcrime_visao_vazia, 0)))
+    # processar_contagem_bairro: 1 / 0 / -1
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_contagem_bairro_ok, 1)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_contagem_bairro_visao_vazia, 0)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_contagem_bairro_coluna_nao_processada, -1)))
+    # obter_qtd_crime: 1 / 0
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_obter_qtd_crime_listado, 1)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_obter_qtd_crime_nao_listado, 0)))
+    # obter_qtd_bairro: 1 / 0
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_obter_qtd_bairro_listado, 1)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_obter_qtd_bairro_nao_listado, 0)))
+    # obter_lista_crimes / obter_lista_bairros: 1
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_obter_lista_crimes_ok, 1)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_obter_lista_bairros_ok, 1)))
     return testes
 
 

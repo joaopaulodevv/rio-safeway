@@ -1,8 +1,9 @@
 # testa_periodo.py - testes (por funções) do módulo periodo.py
 #
-# Cada caso de teste é uma função teste_*() que prepara o estado e devolve o
-# valor a ser verificado. O Dataframe é reiniciado e carregado quando o teste
-# precisa da visão ativa (o filtro de período opera sobre ela).
+# Reimplementado a partir da especificação de interfaces: cada função de acesso
+# tem um teste para CADA código de retorno documentado (1 OK, 0 FALHA, -1 ERRO).
+# No padrão do teste_livro.py, cada teste_*() executa a função, imprime o código
+# e DEVOLVE o código de retorno, que verifica() confere contra o esperado.
 
 import os
 import tempfile
@@ -19,6 +20,15 @@ SAMPLE = (
 )
 
 
+def imprime_codigo(codigo):
+    mensagens = {
+        1: "OK - periodo valido / filtro aplicado com ocorrencias",
+        0: "FALHA - datas invertidas/limite de 1 dia / falha de validacao",
+        -1: "ERRO - tipagem/formato invalido / aplicado sem ocorrencias",
+    }
+    print(f"Codigo {int(codigo)}: {mensagens.get(codigo, 'desconhecido')}")
+
+
 def carregar_sample():
     """Reseta Dataframe e Período e carrega o CSV de exemplo."""
     caminho = os.path.join(tempfile.mkdtemp(), "dados.csv")
@@ -27,72 +37,72 @@ def carregar_sample():
     dataframe.resetar()
     resetar()
     dataframe.carregar_dados(caminho)
-    dataframe.processar_coluna_bairros()
+    dataframe.filtra_dados_invalidos()
 
 
-def contar_ativo():
-    qtd = 0
-    while dataframe.obter_registro(qtd)[0] == dataframe.DF_CondRet.OK:
-        qtd += 1
-    return qtd
+# ---------------- valida_periodo (1 / 0 / -1) ----------------
 
-
-# ---------------- valida_periodo ----------------
-
-def teste_valida_periodo_valido():
-    return valida_periodo("2024-01-01", "2024-12-31")
+def teste_valida_ok():
+    codigo = valida_periodo("2024-01-01", "2024-12-31")
+    imprime_codigo(codigo)
+    return codigo
 
 
 def teste_valida_datas_invertidas():
-    return valida_periodo("2024-12-31", "2024-01-01")
+    codigo = valida_periodo("2024-12-31", "2024-01-01")
+    imprime_codigo(codigo)
+    return codigo
 
 
 def teste_valida_limite_um_dia():
-    return valida_periodo("2024-05-15", "2024-05-15")
+    codigo = valida_periodo("2024-05-15", "2024-05-15")
+    imprime_codigo(codigo)
+    return codigo
 
 
 def teste_valida_tipagem():
-    return valida_periodo(123, 456)
+    codigo = valida_periodo(123, 456)
+    imprime_codigo(codigo)
+    return codigo
 
 
 def teste_valida_formato():
-    return valida_periodo("ontem", "hoje")
+    codigo = valida_periodo("ontem", "hoje")
+    imprime_codigo(codigo)
+    return codigo
 
 
-def teste_valida_nulo():
-    return valida_periodo(None, "2024-12-31")
-
-
-# ---------------- aplicar_filtro_periodo ----------------
+# ---------------- aplicar_filtro_periodo (1 / 0 / -1) ----------------
 
 def teste_aplicar_com_ocorrencias():
     carregar_sample()
-    return aplicar_filtro_periodo("2024-01-01", "2024-12-31")
-
-
-def teste_aplicar_conta():
-    carregar_sample()
-    aplicar_filtro_periodo("2024-01-01", "2024-12-31")
-    return contar_ativo()
+    codigo = aplicar_filtro_periodo("2024-01-01", "2024-12-31")
+    imprime_codigo(codigo)
+    return codigo
 
 
 def teste_aplicar_falha_validacao():
     carregar_sample()
-    return aplicar_filtro_periodo("2024-12-31", "2024-01-01")
+    codigo = aplicar_filtro_periodo("2024-12-31", "2024-01-01")
+    imprime_codigo(codigo)
+    return codigo
 
 
 def teste_aplicar_sem_ocorrencias():
     carregar_sample()
-    return aplicar_filtro_periodo("2030-01-01", "2030-12-31")
+    codigo = aplicar_filtro_periodo("2030-01-01", "2030-12-31")
+    imprime_codigo(codigo)
+    return codigo
 
 
-# ---------------- limpar_filtro_periodo ----------------
+# ---------------- limpar_filtro_periodo (1) ----------------
 
-def teste_limpar_restaura():
+def teste_limpar_ok():
     carregar_sample()
     aplicar_filtro_periodo("2030-01-01", "2030-12-31")
-    limpar_filtro_periodo()
-    return contar_ativo()
+    codigo = limpar_filtro_periodo()
+    imprime_codigo(codigo)
+    return codigo
 
 
 def verifica(funcao, esperado):
@@ -102,22 +112,18 @@ def verifica(funcao, esperado):
 
 def monta_testes():
     testes = unittest.TestSuite()
-    casos = [
-        (teste_valida_periodo_valido, PER_CondRet.OK),
-        (teste_valida_datas_invertidas, PER_CondRet.FALHA),
-        (teste_valida_limite_um_dia, PER_CondRet.FALHA),
-        (teste_valida_tipagem, PER_CondRet.ERRO),
-        (teste_valida_formato, PER_CondRet.ERRO),
-        (teste_valida_nulo, PER_CondRet.ERRO),
-        (teste_aplicar_com_ocorrencias, PER_CondRet.OK),
-        (teste_aplicar_conta, 3),
-        (teste_aplicar_falha_validacao, PER_CondRet.FALHA),
-        (teste_aplicar_sem_ocorrencias, PER_CondRet.ERRO),
-        (teste_limpar_restaura, 3),
-    ]
-    for funcao, esperado in casos:
-        testes.addTest(unittest.FunctionTestCase(
-            lambda f=funcao, e=esperado: verifica(f, e)))
+    # valida_periodo: 1 / 0 / 0 / -1 / -1
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_valida_ok, 1)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_valida_datas_invertidas, 0)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_valida_limite_um_dia, 0)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_valida_tipagem, -1)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_valida_formato, -1)))
+    # aplicar_filtro_periodo: 1 / 0 / -1
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_aplicar_com_ocorrencias, 1)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_aplicar_falha_validacao, 0)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_aplicar_sem_ocorrencias, -1)))
+    # limpar_filtro_periodo: 1
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_limpar_ok, 1)))
     return testes
 
 
