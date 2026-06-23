@@ -38,6 +38,7 @@ def definir_dir_saida(caminho: str) -> None:
 
     Acoplamento:
         caminho (entrada): diretório de saída (criado se não existir).
+    Assertiva de entrada: caminho é uma string com um diretório.
     Assertiva de saída: os próximos mapas são gravados em `caminho`.
     """
     global _dir_saida
@@ -88,6 +89,7 @@ def plot_bubbleMap() -> int:
         MAPA_CondRet.ERRO (-1): coordenadas ausentes/corrompidas (nenhum ponto
             válido a desenhar).
 
+    Assertiva de entrada: a visão ativa do Dataframe existe.
     Assertiva de saída: em caso de OK, existe um arquivo HTML com as bolhas.
     """
     tem_registro, pontos = _coletar_pontos()
@@ -122,6 +124,7 @@ def plot_heatMap() -> int:
         MAPA_CondRet.FALHA (0): base ativa vazia (abortado).
         MAPA_CondRet.ERRO (-1): coordenadas ausentes/corrompidas.
 
+    Assertiva de entrada: a visão ativa do Dataframe existe.
     Assertiva de saída: em caso de OK, existe um arquivo HTML com o mapa de calor.
     """
     tem_registro, pontos = _coletar_pontos()
@@ -145,6 +148,7 @@ def plot_scatterPlotMap() -> int:
         MAPA_CondRet.FALHA (0): base ativa vazia (abortado).
         MAPA_CondRet.ERRO (-1): coordenadas ausentes/corrompidas.
 
+    Assertiva de entrada: a visão ativa do Dataframe existe.
     Assertiva de saída: em caso de OK, existe um arquivo HTML com um ponto por
         ocorrência válida.
     """

@@ -33,6 +33,7 @@ def resetar() -> None:
     """
     Objetivo: zerar o estado encapsulado (apoio aos testes automatizados).
 
+    Assertiva de entrada: nenhuma (os caches podem ou não estar preenchidos).
     Assertiva de saída: o cache do bairro em alerta fica indefinido e o cache
         do crime predominante por bairro fica vazio.
     """
@@ -51,6 +52,7 @@ def calcular_bairro_alerta() -> int:
         DEST_CondRet.FALHA (0): nenhum bairro estritamente acima da média.
         DEST_CondRet.ERRO (-1): impossível calcular a média (0 ou 1 bairro).
 
+    Assertiva de entrada: a visão ativa existe e teve a coluna 'bairro' processada.
     Assertiva de saída: em caso de OK, o cache guarda (bairro, qtd) do bairro de
         maior contagem acima da média; nos demais casos, o cache fica vazio.
     """
@@ -94,6 +96,10 @@ def obter_bairro_alerta():
     Retornos (primeiro elemento):
         DEST_CondRet.OK    (1): variáveis copiadas com sucesso.
         DEST_CondRet.FALHA (0): cálculo ainda não processado (nome None, qtd 0).
+
+    Assertiva de entrada: calcular_bairro_alerta pode ou não ter sido executada.
+    Assertiva de saída: o cache não é alterado; devolve apenas cópias de
+        primitivos (código, nome do bairro e quantidade).
     """
     if _bairro_alerta_atual is None:
         return (DEST_CondRet.FALHA, None, 0)
@@ -111,6 +117,7 @@ def calcular_top_crime_pbairro(bairro: str) -> int:
         DEST_CondRet.OK    (1): crime predominante calculado e armazenado.
         DEST_CondRet.FALHA (0): bairro não consta na visão ativa.
 
+    Assertiva de entrada: a visão ativa existe e teve a coluna 'bairro' processada.
     Assertiva de saída: em caso de OK, o cache guarda, para o bairro, o crime
         de maior incidência; havendo empate, os crimes são unidos por ' e '.
     """
@@ -146,6 +153,11 @@ def obter_top_crime_pbairro(bairro: str):
     Retornos (primeiro elemento):
         DEST_CondRet.OK    (1): variável preenchida.
         DEST_CondRet.FALHA (0): cálculo não realizado para este bairro (None).
+
+    Assertiva de entrada: calcular_top_crime_pbairro pode ou não ter sido
+        executada para este bairro.
+    Assertiva de saída: o cache não é alterado; devolve apenas cópias de
+        primitivos (código e crime predominante).
     """
     if bairro in _top_crime_por_bairro:
         return (DEST_CondRet.OK, _top_crime_por_bairro[bairro])

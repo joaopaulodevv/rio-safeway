@@ -70,6 +70,7 @@ def resetar() -> None:
     """
     Objetivo: zerar o estado encapsulado (apoio aos testes automatizados).
 
+    Assertiva de entrada: nenhuma (a base pode ou não estar carregada).
     Assertiva de saída: a base original e a visão ativa ficam indefinidas.
     """
     global _df_original, _df_ativo
@@ -146,6 +147,7 @@ def recuperar(caminho: str) -> int:
         DF_CondRet.FALHA (0): arquivo inexistente (primeira execução).
         DF_CondRet.ERRO (-1): arquivo de persistência corrompido/inválido.
 
+    Assertiva de entrada: caminho é uma string com um caminho de arquivo.
     Assertiva de saída: em caso de OK, a base e a visão ativa contêm exatamente
         as ocorrências gravadas, com 'data' convertida para datetime.
     """
@@ -175,6 +177,7 @@ def filtra_dados_invalidos() -> int:
         DF_CondRet.OK    (1): limpeza concluída.
         DF_CondRet.FALHA (0): base vazia/inexistente, nada a limpar.
 
+    Assertiva de entrada: a base pode estar carregada ou não (None/vazia).
     Assertiva de saída: em caso de OK, a base e a visão ativa não contêm nulos
         em 'data', 'latitude' ou 'longitude'; latitude/longitude são numéricas.
     """
@@ -208,6 +211,7 @@ def adiciona_dado(data, latitude, longitude, tipo_crime) -> int:
             data/coordenada não conversível).
         DF_CondRet.FORA_LIMITES (-2): coordenadas fora dos limites do Rio.
 
+    Assertiva de entrada: a base existe ou será criada vazia na primeira inserção.
     Assertiva de saída: em caso de OK, a base tem uma linha a mais; se a coluna
         'bairro' já existia, o bairro da nova linha é recalculado.
     """
@@ -257,6 +261,7 @@ def remove_dados(data=None, latitude=None, longitude=None, tipo_crime=None) -> i
         DF_CondRet.ERRO (-1): nenhum critério informado — remoção total não
             permitida (evita apagar a base por acidente).
 
+    Assertiva de entrada: a base existe e contém zero ou mais ocorrências.
     Assertiva de saída: em caso de OK, nenhuma linha remanescente casa com
         todos os critérios informados.
     """
@@ -293,6 +298,7 @@ def processar_coluna_bairros() -> int:
         DF_CondRet.FALHA (0): base vazia/inexistente.
         DF_CondRet.ERRO (-1): erro na conversão.
 
+    Assertiva de entrada: a base existe e possui as colunas 'latitude' e 'longitude'.
     Assertiva de saída: em caso de OK, toda linha possui um bairro (nome
         conhecido ou 'Desconhecido') tanto na base quanto na visão ativa.
     """
@@ -327,6 +333,7 @@ def aplicar_filtro_interno(coluna: str, valor_inicio: str, valor_fim: str) -> in
         DF_CondRet.FALHA (0): filtro aplicado e a visão ativa ficou vazia
             (ou não havia visão ativa).
 
+    Assertiva de entrada: a visão ativa existe; 'coluna' é uma coluna válida da base.
     Assertiva de saída: a visão ativa passa a conter apenas as linhas que
         satisfazem o filtro.
     """
@@ -354,6 +361,7 @@ def restaurar_visao() -> int:
         DF_CondRet.OK    (1): visão ativa restaurada.
         DF_CondRet.FALHA (0): não há base carregada.
 
+    Assertiva de entrada: a base original pode estar carregada ou não.
     Assertiva de saída: em caso de OK, a visão ativa é igual à base original.
     """
     global _df_ativo

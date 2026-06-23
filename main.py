@@ -187,14 +187,6 @@ def acao_mapa(funcao, nome: str) -> None:
         print(f"{nome} abortado: coordenadas ausentes ou corrompidas.")
 
 
-def acao_salvar() -> None:
-    """Menu 14: grava o estado atual no arquivo de persistência."""
-    if dataframe.gravar(ARQUIVO_PERSISTENCIA) == dataframe.DF_CondRet.OK:
-        print("Dados salvos.")
-    else:
-        print("Não há dados para salvar.")
-
-
 MENU = """
 ============= Rio SafeWay =============
 1  - Adicionar ocorrência
@@ -210,7 +202,6 @@ MENU = """
 11 - Mapa de Bolhas
 12 - Mapa de Calor
 13 - Mapa de Dispersão
-14 - Salvar dados agora
 0  - Sair (grava automaticamente)
 ======================================"""
 
@@ -251,8 +242,6 @@ def main() -> None:
             acao_mapa(mapa.plot_heatMap, "Mapa de calor")
         elif opcao == "13":
             acao_mapa(mapa.plot_scatterPlotMap, "Mapa de dispersão")
-        elif opcao == "14":
-            acao_salvar()
         else:
             print("Opção inválida.")
 

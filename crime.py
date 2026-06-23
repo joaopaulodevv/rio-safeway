@@ -33,6 +33,7 @@ def resetar() -> None:
     """
     Objetivo: zerar o estado encapsulado (apoio aos testes automatizados).
 
+    Assertiva de entrada: nenhuma (as estatísticas podem ou não estar calculadas).
     Assertiva de saída: as contagens por tipo de crime e por bairro ficam
         vazias e o filtro de crime ativo fica indefinido.
     """
@@ -55,6 +56,7 @@ def aplicar_filtro_crime(crime: str) -> int:
         CRIME_CondRet.FALHA (0): string de busca inválida (vazia/não string).
         CRIME_CondRet.ERRO (-1): crime sem ocorrências na base atual.
 
+    Assertiva de entrada: a visão ativa do Dataframe está carregada.
     Assertiva de saída: em caso de OK/ERRO, a visão ativa só contém o crime
         pedido e o filtro ativo guarda a string.
     """
@@ -77,6 +79,7 @@ def limpar_filtro_crime() -> int:
     Retornos:
         CRIME_CondRet.OK (1): estado resetado e visão restaurada.
 
+    Assertiva de entrada: nenhuma (o filtro de crime pode ou não estar ativo).
     Assertiva de saída: o filtro de crime ativo fica indefinido.
     """
     global _filtro_crime_ativo
@@ -94,6 +97,7 @@ def processar_contagem_tpCrime() -> int:
         CRIME_CondRet.OK    (1): estatística gerada com sucesso.
         CRIME_CondRet.FALHA (0): visão ativa vazia.
 
+    Assertiva de entrada: a visão ativa do Dataframe existe.
     Assertiva de saída: em caso de OK, _contagem_tpCrime mapeia cada tipo (ou
         'Desconhecido') à sua quantidade; a soma é o nº de registros da visão.
     """
@@ -127,6 +131,7 @@ def processar_contagem_bairro() -> int:
         CRIME_CondRet.ERRO (-1): coluna bairro não processada (registros sem
             bairro — falta executar processar_coluna_bairros no Dataframe).
 
+    Assertiva de entrada: a visão ativa existe e teve a coluna 'bairro' processada.
     Assertiva de saída: em caso de OK, _contagem_bairro mapeia cada bairro à sua
         quantidade; a soma é o nº de registros da visão.
     """
@@ -163,6 +168,11 @@ def obter_qtd_crime(crime: str):
     Retornos (primeiro elemento):
         CRIME_CondRet.OK    (1): quantidade preenchida.
         CRIME_CondRet.FALHA (0): crime não consta nas estatísticas (qtd = 0).
+
+    Assertiva de entrada: processar_contagem_tpCrime pode ou não ter sido
+        executada antes.
+    Assertiva de saída: o estado encapsulado não é alterado; devolve apenas
+        cópias de primitivos (código e quantidade).
     """
     if crime in _contagem_tpCrime:
         return (CRIME_CondRet.OK, _contagem_tpCrime[crime])
@@ -180,6 +190,11 @@ def obter_qtd_bairro(bairro: str):
     Retornos (primeiro elemento):
         CRIME_CondRet.OK    (1): quantidade preenchida.
         CRIME_CondRet.FALHA (0): bairro não consta nas estatísticas (qtd = 0).
+
+    Assertiva de entrada: processar_contagem_bairro pode ou não ter sido
+        executada antes.
+    Assertiva de saída: o estado encapsulado não é alterado; devolve apenas
+        cópias de primitivos (código e quantidade).
     """
     if bairro in _contagem_bairro:
         return (CRIME_CondRet.OK, _contagem_bairro[bairro])
@@ -195,6 +210,11 @@ def obter_lista_crimes():
 
     Retornos (primeiro elemento):
         CRIME_CondRet.OK (1): lista (possivelmente vazia) devolvida.
+
+    Assertiva de entrada: processar_contagem_tpCrime pode ou não ter sido
+        executada antes.
+    Assertiva de saída: o estado encapsulado não é alterado; devolve apenas
+        uma cópia da lista de tipos de crime (strings).
     """
     return (CRIME_CondRet.OK, list(_contagem_tpCrime.keys()))
 
@@ -208,5 +228,10 @@ def obter_lista_bairros():
 
     Retornos (primeiro elemento):
         CRIME_CondRet.OK (1): lista (possivelmente vazia) devolvida.
+
+    Assertiva de entrada: processar_contagem_bairro pode ou não ter sido
+        executada antes.
+    Assertiva de saída: o estado encapsulado não é alterado; devolve apenas
+        uma cópia da lista de bairros (strings).
     """
     return (CRIME_CondRet.OK, list(_contagem_bairro.keys()))

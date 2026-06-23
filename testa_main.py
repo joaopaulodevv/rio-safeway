@@ -95,17 +95,6 @@ def teste_acao_mapa():
     return 1
 
 
-def teste_acao_salvar():
-    preparar()
-    main.iniciar_sistema()
-    main.acao_salvar()
-    if os.path.exists(main.ARQUIVO_PERSISTENCIA):
-        imprime_codigo(0)
-        return 0
-    imprime_codigo(1)
-    return 1
-
-
 def verifica(funcao, esperado):
     retorno = funcao()
     assert retorno == esperado, f"esperado {esperado!r}, obtido {retorno!r}"
@@ -116,7 +105,6 @@ def monta_testes():
     testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_iniciar_sistema, 0)))
     testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_acao_relatorio_geral, 0)))
     testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_acao_mapa, 0)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_acao_salvar, 0)))
     return testes
 
 

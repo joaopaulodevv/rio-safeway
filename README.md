@@ -37,8 +37,8 @@ de saída retornam aqui uma tupla `(codigo, valores...)`.
 ### Persistência entre execuções
 
 O módulo Dataframe expõe `gravar(caminho)` e `recuperar(caminho)`. O `main.py`
-chama `recuperar` ao iniciar e `gravar` ao sair (e na opção "Salvar dados"),
-gravando o estado em `estado_rio_safeway.csv`. Na primeira execução, sem arquivo
+chama `recuperar` ao iniciar e `gravar` ao sair, gravando o estado em
+`estado_rio_safeway.csv`. Na primeira execução, sem arquivo
 de estado, carrega a base inicial `dados_crimes.csv`. Assim, ocorrências
 adicionadas/removidas persistem de uma execução para a outra. Em runtime nada é
 lido/escrito em arquivo como armazenamento de trabalho — os dados vivem em

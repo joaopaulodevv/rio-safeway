@@ -34,6 +34,7 @@ def resetar() -> None:
     """
     Objetivo: zerar o estado encapsulado (apoio aos testes automatizados).
 
+    Assertiva de entrada: nenhuma (o filtro temporal pode ou não estar ativo).
     Assertiva de saída: as datas de início e fim do filtro temporal ativo
         ficam indefinidas.
     """
@@ -90,6 +91,8 @@ def aplicar_filtro_periodo(inicio, fim) -> int:
         PER_CondRet.ERRO (-1): validado e aplicado, mas a base resultou em zero
             ocorrências.
 
+    Assertiva de entrada: inicio e fim deveriam ser strings de data e a base
+        deve estar carregada no Dataframe.
     Assertiva de saída: em caso de OK/ERRO, o estado temporal ativo guarda
         inicio e fim, e a visão ativa do Dataframe reflete o recorte.
     """
@@ -113,6 +116,7 @@ def limpar_filtro_periodo() -> int:
     Retornos:
         PER_CondRet.OK (1): estado resetado e visão restaurada.
 
+    Assertiva de entrada: nenhuma (o filtro temporal pode ou não estar ativo).
     Assertiva de saída: o estado temporal ativo fica indefinido.
     """
     global _data_inicio_ativa, _data_fim_ativa
