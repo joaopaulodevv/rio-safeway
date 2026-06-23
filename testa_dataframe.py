@@ -1,10 +1,9 @@
 # testa_dataframe.py - testes (por funções) do módulo dataframe.py
 #
-# Reimplementado a partir da especificação de interfaces: cada função de acesso
-# tem um teste para CADA código de retorno documentado (1 OK, 0 FALHA,
-# -1 ERRO, -2 FORA_LIMITES). No padrão do teste_livro.py, cada teste_*() executa
-# a função, imprime o código e DEVOLVE o código de retorno, que verifica()
-# confere contra o esperado.
+# UMA função de teste por função de
+# acesso. Cada teste_*() exercita os DIFERENTES retornos daquela função
+# (1 OK, 0 FALHA, -1 ERRO, -2 FORA_LIMITES), compara cada um com o esperado e
+# DEVOLVE 0 (passou) ou 1 (falhou). monta_testes() confere que todos devolvem 0.
 
 import os
 import tempfile
@@ -29,13 +28,9 @@ SAMPLE_LATLON_INVALIDA = (
 
 
 def imprime_codigo(codigo):
-    mensagens = {
-        1: "OK - operacao concluida com sucesso",
-        0: "FALHA - situacao prevista (vazio / nao encontrado)",
-        -1: "ERRO - arquivo/parametro invalido ou operacao nao permitida",
-        -2: "FORA_LIMITES - coordenadas fora dos limites do Rio",
-    }
-    print(f"Codigo {int(codigo)}: {mensagens.get(codigo, 'desconhecido')}")
+    mensagens = {0: "passou (todos os retornos == esperado)",
+                 1: "falhou (algum retorno != esperado)"}
+    print(f"Codigo {codigo}: {mensagens[codigo]}")
 
 
 def caminho_csv(texto):
@@ -56,201 +51,137 @@ def carregar(texto=SAMPLE, filtrar=True, bairros=False):
         processar_coluna_bairros()
 
 
-# ---------------- carregar_dados (1 / 0 / -1) ----------------
-
-def teste_carregar_ok():
+def teste_carregar_dados():
     resetar()
-    codigo = carregar_dados(caminho_csv(SAMPLE))
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_carregar_arquivo_inexistente():
+    r_ok = carregar_dados(caminho_csv(SAMPLE))                  # 1
     resetar()
-    codigo = carregar_dados("/caminho/que/nao/existe.csv")
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_carregar_corrompido():
+    r_inexistente = carregar_dados("/caminho/que/nao/existe.csv")  # 0
     resetar()
-    codigo = carregar_dados(caminho_csv(SAMPLE_CORROMPIDO))
-    imprime_codigo(codigo)
-    return codigo
+    r_corrompido = carregar_dados(caminho_csv(SAMPLE_CORROMPIDO))  # -1
+    if r_ok == 1 and r_inexistente == 0 and r_corrompido == -1:
+        imprime_codigo(0)
+        return 0
+    imprime_codigo(1)
+    return 1
 
 
-# ---------------- filtra_dados_invalidos (1 / 0) ----------------
-
-def teste_filtra_ok():
+def teste_filtra_dados_invalidos():
     carregar(filtrar=False)
-    codigo = filtra_dados_invalidos()
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_filtra_base_vazia():
+    r_ok = filtra_dados_invalidos()      # 1
     resetar()
-    codigo = filtra_dados_invalidos()
-    imprime_codigo(codigo)
-    return codigo
+    r_vazia = filtra_dados_invalidos()   # 0
+    if r_ok == 1 and r_vazia == 0:
+        imprime_codigo(0)
+        return 0
+    imprime_codigo(1)
+    return 1
 
 
-# ---------------- adiciona_dado (1 / -1 / -2) ----------------
-
-def teste_adiciona_ok():
+def teste_adiciona_dado():
     carregar()
-    codigo = adiciona_dado("2024-04-01", -22.9680, -43.1880, "Furto")
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_adiciona_param_invalido():
+    r_ok = adiciona_dado("2024-04-01", -22.9680, -43.1880, "Furto")  # 1
     carregar()
-    codigo = adiciona_dado("2024-04-01", -22.9680, -43.1880, "")
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_adiciona_fora_limites():
+    r_invalido = adiciona_dado("2024-04-01", -22.9680, -43.1880, "")  # -1
     carregar()
-    codigo = adiciona_dado("2024-04-01", 0.0, 0.0, "Roubo")
-    imprime_codigo(codigo)
-    return codigo
+    r_fora = adiciona_dado("2024-04-01", 0.0, 0.0, "Roubo")           # -2
+    if r_ok == 1 and r_invalido == -1 and r_fora == -2:
+        imprime_codigo(0)
+        return 0
+    imprime_codigo(1)
+    return 1
 
 
-# ---------------- remove_dados (1 / 0 / -1) ----------------
-
-def teste_remove_ok():
+def teste_remove_dados():
     carregar()
-    codigo = remove_dados(tipo_crime="Roubo")
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_remove_nao_encontrado():
+    r_ok = remove_dados(tipo_crime="Roubo")           # 1
     carregar()
-    codigo = remove_dados(tipo_crime="Homicidio")
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_remove_total_nao_permitida():
+    r_nao_achou = remove_dados(tipo_crime="Homicidio")  # 0
     carregar()
-    codigo = remove_dados()
-    imprime_codigo(codigo)
-    return codigo
+    r_total = remove_dados()                            # -1
+    if r_ok == 1 and r_nao_achou == 0 and r_total == -1:
+        imprime_codigo(0)
+        return 0
+    imprime_codigo(1)
+    return 1
 
 
-# ---------------- processar_coluna_bairros (1 / 0 / -1) ----------------
-
-def teste_bairros_ok():
+def teste_processar_coluna_bairros():
     carregar()
-    codigo = processar_coluna_bairros()
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_bairros_base_vazia():
+    r_ok = processar_coluna_bairros()    # 1
     resetar()
-    codigo = processar_coluna_bairros()
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_bairros_erro_conversao():
+    r_vazia = processar_coluna_bairros()  # 0
     carregar(SAMPLE_LATLON_INVALIDA, filtrar=False)
-    codigo = processar_coluna_bairros()
-    imprime_codigo(codigo)
-    return codigo
+    r_erro = processar_coluna_bairros()   # -1
+    if r_ok == 1 and r_vazia == 0 and r_erro == -1:
+        imprime_codigo(0)
+        return 0
+    imprime_codigo(1)
+    return 1
 
 
-# ---------------- aplicar_filtro_interno (1 / 0) ----------------
-
-def teste_filtro_interno_restaram():
+def teste_aplicar_filtro_interno():
     carregar()
-    codigo = aplicar_filtro_interno("tipo_crime", "Furto", "Furto")
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_filtro_interno_vazio():
+    r_restaram = aplicar_filtro_interno("tipo_crime", "Furto", "Furto")        # 1
     carregar()
-    codigo = aplicar_filtro_interno("tipo_crime", "Inexistente", "Inexistente")
-    imprime_codigo(codigo)
-    return codigo
+    r_vazio = aplicar_filtro_interno("tipo_crime", "Inexistente", "Inexistente")  # 0
+    if r_restaram == 1 and r_vazio == 0:
+        imprime_codigo(0)
+        return 0
+    imprime_codigo(1)
+    return 1
 
 
-# ---------------- obter_registro (1 / 0) ----------------
-
-def teste_obter_registro_ok():
+def teste_obter_registro():
     carregar()
-    codigo = obter_registro(0)[0]
-    imprime_codigo(codigo)
-    return codigo
+    r_ok = obter_registro(0)[0]      # 1
+    r_fora = obter_registro(9999)[0]  # 0
+    if r_ok == 1 and r_fora == 0:
+        imprime_codigo(0)
+        return 0
+    imprime_codigo(1)
+    return 1
 
 
-def teste_obter_registro_fora_limites():
-    carregar()
-    codigo = obter_registro(9999)[0]
-    imprime_codigo(codigo)
-    return codigo
-
-
-# ---------------- restaurar_visao (1 / 0) ----------------
-
-def teste_restaurar_ok():
+def teste_restaurar_visao():
     carregar()
     aplicar_filtro_interno("tipo_crime", "Furto", "Furto")
-    codigo = restaurar_visao()
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_restaurar_sem_base():
+    r_ok = restaurar_visao()      # 1
     resetar()
-    codigo = restaurar_visao()
-    imprime_codigo(codigo)
-    return codigo
+    r_sem_base = restaurar_visao()  # 0
+    if r_ok == 1 and r_sem_base == 0:
+        imprime_codigo(0)
+        return 0
+    imprime_codigo(1)
+    return 1
 
 
-# ---------------- gravar / recuperar - persistência (1 / 0 / -1) ----------------
-
-def teste_gravar_ok():
+def teste_gravar():
     carregar()
-    codigo = gravar(os.path.join(tempfile.mkdtemp(), "estado.csv"))
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_gravar_sem_base():
+    r_ok = gravar(os.path.join(tempfile.mkdtemp(), "estado.csv"))  # 1
     resetar()
-    codigo = gravar(os.path.join(tempfile.mkdtemp(), "estado.csv"))
-    imprime_codigo(codigo)
-    return codigo
+    r_sem_base = gravar(os.path.join(tempfile.mkdtemp(), "estado.csv"))  # 0
+    if r_ok == 1 and r_sem_base == 0:
+        imprime_codigo(0)
+        return 0
+    imprime_codigo(1)
+    return 1
 
 
-def teste_recuperar_ok():
+def teste_recuperar():
     carregar()
     caminho = os.path.join(tempfile.mkdtemp(), "estado.csv")
     gravar(caminho)
     resetar()
-    codigo = recuperar(caminho)
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_recuperar_inexistente():
+    r_ok = recuperar(caminho)                          # 1
     resetar()
-    codigo = recuperar("/caminho/que/nao/existe.csv")
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_recuperar_corrompido():
+    r_inexistente = recuperar("/caminho/que/nao/existe.csv")  # 0
     resetar()
-    codigo = recuperar(caminho_csv(SAMPLE_CORROMPIDO))
-    imprime_codigo(codigo)
-    return codigo
+    r_corrompido = recuperar(caminho_csv(SAMPLE_CORROMPIDO))  # -1
+    if r_ok == 1 and r_inexistente == 0 and r_corrompido == -1:
+        imprime_codigo(0)
+        return 0
+    imprime_codigo(1)
+    return 1
 
 
 def verifica(funcao, esperado):
@@ -260,41 +191,16 @@ def verifica(funcao, esperado):
 
 def monta_testes():
     testes = unittest.TestSuite()
-    # carregar_dados: 1 / 0 / -1
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_carregar_ok, 1)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_carregar_arquivo_inexistente, 0)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_carregar_corrompido, -1)))
-    # filtra_dados_invalidos: 1 / 0
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_filtra_ok, 1)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_filtra_base_vazia, 0)))
-    # adiciona_dado: 1 / -1 / -2
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_adiciona_ok, 1)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_adiciona_param_invalido, -1)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_adiciona_fora_limites, -2)))
-    # remove_dados: 1 / 0 / -1
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_remove_ok, 1)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_remove_nao_encontrado, 0)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_remove_total_nao_permitida, -1)))
-    # processar_coluna_bairros: 1 / 0 / -1
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_bairros_ok, 1)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_bairros_base_vazia, 0)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_bairros_erro_conversao, -1)))
-    # aplicar_filtro_interno: 1 / 0
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_filtro_interno_restaram, 1)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_filtro_interno_vazio, 0)))
-    # obter_registro: 1 / 0
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_obter_registro_ok, 1)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_obter_registro_fora_limites, 0)))
-    # restaurar_visao: 1 / 0
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_restaurar_ok, 1)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_restaurar_sem_base, 0)))
-    # gravar: 1 / 0
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_gravar_ok, 1)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_gravar_sem_base, 0)))
-    # recuperar: 1 / 0 / -1
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_recuperar_ok, 1)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_recuperar_inexistente, 0)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_recuperar_corrompido, -1)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_carregar_dados, 0)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_filtra_dados_invalidos, 0)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_adiciona_dado, 0)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_remove_dados, 0)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_processar_coluna_bairros, 0)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_aplicar_filtro_interno, 0)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_obter_registro, 0)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_restaurar_visao, 0)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_gravar, 0)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_recuperar, 0)))
     return testes
 
 

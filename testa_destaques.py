@@ -1,9 +1,9 @@
 # testa_destaques.py - testes (por funções) do módulo destaques.py
 #
-# Reimplementado a partir da especificação de interfaces: cada função de acesso
-# tem um teste para CADA código de retorno documentado (1 OK, 0 FALHA, -1 ERRO).
-# No padrão do teste_livro.py, cada teste_*() executa a função, imprime o código
-# e DEVOLVE o código de retorno, que verifica() confere contra o esperado.
+# Estilo da referência  UMA função de teste por função de
+# acesso. Cada teste_*() exercita os DIFERENTES retornos daquela função
+# (1 OK, 0 FALHA, -1 ERRO), compara cada um com o esperado e DEVOLVE 0 (passou)
+# ou 1 (falhou). monta_testes() confere que todos devolvem 0.
 
 import os
 import tempfile
@@ -41,12 +41,9 @@ SAMPLE_UM_BAIRRO = (
 
 
 def imprime_codigo(codigo):
-    mensagens = {
-        1: "OK - calculo realizado / variaveis copiadas",
-        0: "FALHA - nada acima da media / nao consta / nao calculado ainda",
-        -1: "ERRO - impossivel calcular media (0 ou 1 bairro na base)",
-    }
-    print(f"Codigo {int(codigo)}: {mensagens.get(codigo, 'desconhecido')}")
+    mensagens = {0: "passou (todos os retornos == esperado)",
+                 1: "falhou (algum retorno != esperado)"}
+    print(f"Codigo {codigo}: {mensagens[codigo]}")
 
 
 def carregar_sample(texto):
@@ -62,77 +59,56 @@ def carregar_sample(texto):
     dataframe.processar_coluna_bairros()
 
 
-# ---------------- calcular_bairro_alerta (1 / 0 / -1) ----------------
-
-def teste_calc_alerta_ok():
+def teste_calcular_bairro_alerta():
     carregar_sample(SAMPLE_MULTI)
-    codigo = calcular_bairro_alerta()
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_calc_alerta_nenhum_acima():
+    r_ok = calcular_bairro_alerta()        # 1
     carregar_sample(SAMPLE_IGUAL)
-    codigo = calcular_bairro_alerta()
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_calc_alerta_um_bairro():
+    r_nenhum = calcular_bairro_alerta()    # 0
     carregar_sample(SAMPLE_UM_BAIRRO)
-    codigo = calcular_bairro_alerta()
-    imprime_codigo(codigo)
-    return codigo
+    r_um_bairro = calcular_bairro_alerta()  # -1
+    if r_ok == 1 and r_nenhum == 0 and r_um_bairro == -1:
+        imprime_codigo(0)
+        return 0
+    imprime_codigo(1)
+    return 1
 
 
-# ---------------- obter_bairro_alerta (1 / 0) ----------------
-
-def teste_obter_alerta_ok():
+def teste_obter_bairro_alerta():
     carregar_sample(SAMPLE_MULTI)
     calcular_bairro_alerta()
-    codigo = obter_bairro_alerta()[0]
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_obter_alerta_nao_processado():
+    r_ok = obter_bairro_alerta()[0]  # 1
     resetar()
-    codigo = obter_bairro_alerta()[0]
-    imprime_codigo(codigo)
-    return codigo
+    r_nao_proc = obter_bairro_alerta()[0]  # 0
+    if r_ok == 1 and r_nao_proc == 0:
+        imprime_codigo(0)
+        return 0
+    imprime_codigo(1)
+    return 1
 
 
-# ---------------- calcular_top_crime_pbairro (1 / 0) ----------------
-
-def teste_calc_top_ok():
+def teste_calcular_top_crime_pbairro():
     carregar_sample(SAMPLE_MULTI)
-    codigo = calcular_top_crime_pbairro("Copacabana")
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_calc_top_bairro_nao_consta():
+    r_ok = calcular_top_crime_pbairro("Copacabana")    # 1
     carregar_sample(SAMPLE_MULTI)
-    codigo = calcular_top_crime_pbairro("Atlantida")
-    imprime_codigo(codigo)
-    return codigo
+    r_nao_consta = calcular_top_crime_pbairro("Atlantida")  # 0
+    if r_ok == 1 and r_nao_consta == 0:
+        imprime_codigo(0)
+        return 0
+    imprime_codigo(1)
+    return 1
 
 
-# ---------------- obter_top_crime_pbairro (1 / 0) ----------------
-
-def teste_obter_top_ok():
+def teste_obter_top_crime_pbairro():
     carregar_sample(SAMPLE_MULTI)
     calcular_top_crime_pbairro("Copacabana")
-    codigo = obter_top_crime_pbairro("Copacabana")[0]
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_obter_top_nao_calculado():
+    r_ok = obter_top_crime_pbairro("Copacabana")[0]  # 1
     resetar()
-    codigo = obter_top_crime_pbairro("Copacabana")[0]
-    imprime_codigo(codigo)
-    return codigo
+    r_nao_calc = obter_top_crime_pbairro("Copacabana")[0]  # 0
+    if r_ok == 1 and r_nao_calc == 0:
+        imprime_codigo(0)
+        return 0
+    imprime_codigo(1)
+    return 1
 
 
 def verifica(funcao, esperado):
@@ -142,19 +118,10 @@ def verifica(funcao, esperado):
 
 def monta_testes():
     testes = unittest.TestSuite()
-    # calcular_bairro_alerta: 1 / 0 / -1
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_calc_alerta_ok, 1)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_calc_alerta_nenhum_acima, 0)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_calc_alerta_um_bairro, -1)))
-    # obter_bairro_alerta: 1 / 0
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_obter_alerta_ok, 1)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_obter_alerta_nao_processado, 0)))
-    # calcular_top_crime_pbairro: 1 / 0
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_calc_top_ok, 1)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_calc_top_bairro_nao_consta, 0)))
-    # obter_top_crime_pbairro: 1 / 0
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_obter_top_ok, 1)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_obter_top_nao_calculado, 0)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_calcular_bairro_alerta, 0)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_obter_bairro_alerta, 0)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_calcular_top_crime_pbairro, 0)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_obter_top_crime_pbairro, 0)))
     return testes
 
 

@@ -31,7 +31,12 @@ _data_fim_ativa = None
 
 
 def resetar() -> None:
-    """Zera o estado do filtro temporal (apoio aos testes)."""
+    """
+    Objetivo: zerar o estado encapsulado (apoio aos testes automatizados).
+
+    Assertiva de saída: as datas de início e fim do filtro temporal ativo
+        ficam indefinidas.
+    """
     global _data_inicio_ativa, _data_fim_ativa
     _data_inicio_ativa = None
     _data_fim_ativa = None

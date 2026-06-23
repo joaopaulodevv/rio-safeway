@@ -30,7 +30,12 @@ _filtro_crime_ativo = None
 
 
 def resetar() -> None:
-    """Zera as estatísticas e o filtro de crime (apoio aos testes)."""
+    """
+    Objetivo: zerar o estado encapsulado (apoio aos testes automatizados).
+
+    Assertiva de saída: as contagens por tipo de crime e por bairro ficam
+        vazias e o filtro de crime ativo fica indefinido.
+    """
     global _contagem_tpCrime, _contagem_bairro, _filtro_crime_ativo
     _contagem_tpCrime = {}
     _contagem_bairro = {}

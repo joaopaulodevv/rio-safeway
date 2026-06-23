@@ -30,7 +30,12 @@ _top_crime_por_bairro = {}    # bairro -> crime predominante
 
 
 def resetar() -> None:
-    """Zera os caches de destaques (apoio aos testes)."""
+    """
+    Objetivo: zerar o estado encapsulado (apoio aos testes automatizados).
+
+    Assertiva de saída: o cache do bairro em alerta fica indefinido e o cache
+        do crime predominante por bairro fica vazio.
+    """
     global _bairro_alerta_atual, _top_crime_por_bairro
     _bairro_alerta_atual = None
     _top_crime_por_bairro = {}

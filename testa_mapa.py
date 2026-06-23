@@ -1,10 +1,9 @@
 # testa_mapa.py - testes (por funções) do módulo mapa.py
 #
-# Reimplementado a partir da especificação de interfaces: cada função de plotagem
-# (plot_bubbleMap, plot_heatMap, plot_scatterPlotMap) tem um teste para CADA
-# código de retorno documentado (1 OK, 0 FALHA, -1 ERRO). No padrão do
-# teste_livro.py, cada teste_*() executa a função, imprime o código e DEVOLVE o
-# código de retorno, que verifica() confere contra o esperado. Os mapas são
+# Estilo da referência  UMA função de teste por função de
+# plotagem. Cada teste_*() exercita os DIFERENTES retornos daquela função
+# (1 OK, 0 FALHA, -1 ERRO), compara cada um com o esperado e DEVOLVE 0 (passou)
+# ou 1 (falhou). monta_testes() confere que todos devolvem 0. Os mapas são
 # gravados em diretório temporário.
 
 import os
@@ -30,12 +29,9 @@ definir_dir_saida(tempfile.mkdtemp())
 
 
 def imprime_codigo(codigo):
-    mensagens = {
-        1: "OK - mapa gerado com sucesso",
-        0: "FALHA - base ativa vazia (abortado)",
-        -1: "ERRO - coordenadas ausentes/corrompidas (erro fatal)",
-    }
-    print(f"Codigo {int(codigo)}: {mensagens.get(codigo, 'desconhecido')}")
+    mensagens = {0: "passou (todos os retornos == esperado)",
+                 1: "falhou (algum retorno != esperado)"}
+    print(f"Codigo {codigo}: {mensagens[codigo]}")
 
 
 def carregar_sample(texto, limpar=True):
@@ -55,73 +51,46 @@ def preparar_base_vazia():
     dataframe.aplicar_filtro_interno("tipo_crime", "Sequestro", "Sequestro")
 
 
-# ---------------- plot_bubbleMap (1 / 0 / -1) ----------------
-
-def teste_bubble_ok():
+def teste_plot_bubbleMap():
     carregar_sample(SAMPLE)
-    codigo = plot_bubbleMap()
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_bubble_base_vazia():
+    r_ok = plot_bubbleMap()       # 1
     preparar_base_vazia()
-    codigo = plot_bubbleMap()
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_bubble_coords_corrompidas():
+    r_vazia = plot_bubbleMap()    # 0
     carregar_sample(SAMPLE_SEM_COORDS, limpar=False)
-    codigo = plot_bubbleMap()
-    imprime_codigo(codigo)
-    return codigo
+    r_corromp = plot_bubbleMap()  # -1
+    if r_ok == 1 and r_vazia == 0 and r_corromp == -1:
+        imprime_codigo(0)
+        return 0
+    imprime_codigo(1)
+    return 1
 
 
-# ---------------- plot_heatMap (1 / 0 / -1) ----------------
-
-def teste_heat_ok():
+def teste_plot_heatMap():
     carregar_sample(SAMPLE)
-    codigo = plot_heatMap()
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_heat_base_vazia():
+    r_ok = plot_heatMap()       # 1
     preparar_base_vazia()
-    codigo = plot_heatMap()
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_heat_coords_corrompidas():
+    r_vazia = plot_heatMap()    # 0
     carregar_sample(SAMPLE_SEM_COORDS, limpar=False)
-    codigo = plot_heatMap()
-    imprime_codigo(codigo)
-    return codigo
+    r_corromp = plot_heatMap()  # -1
+    if r_ok == 1 and r_vazia == 0 and r_corromp == -1:
+        imprime_codigo(0)
+        return 0
+    imprime_codigo(1)
+    return 1
 
 
-# ---------------- plot_scatterPlotMap (1 / 0 / -1) ----------------
-
-def teste_scatter_ok():
+def teste_plot_scatterPlotMap():
     carregar_sample(SAMPLE)
-    codigo = plot_scatterPlotMap()
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_scatter_base_vazia():
+    r_ok = plot_scatterPlotMap()       # 1
     preparar_base_vazia()
-    codigo = plot_scatterPlotMap()
-    imprime_codigo(codigo)
-    return codigo
-
-
-def teste_scatter_coords_corrompidas():
+    r_vazia = plot_scatterPlotMap()    # 0
     carregar_sample(SAMPLE_SEM_COORDS, limpar=False)
-    codigo = plot_scatterPlotMap()
-    imprime_codigo(codigo)
-    return codigo
+    r_corromp = plot_scatterPlotMap()  # -1
+    if r_ok == 1 and r_vazia == 0 and r_corromp == -1:
+        imprime_codigo(0)
+        return 0
+    imprime_codigo(1)
+    return 1
 
 
 def verifica(funcao, esperado):
@@ -131,18 +100,9 @@ def verifica(funcao, esperado):
 
 def monta_testes():
     testes = unittest.TestSuite()
-    # plot_bubbleMap: 1 / 0 / -1
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_bubble_ok, 1)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_bubble_base_vazia, 0)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_bubble_coords_corrompidas, -1)))
-    # plot_heatMap: 1 / 0 / -1
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_heat_ok, 1)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_heat_base_vazia, 0)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_heat_coords_corrompidas, -1)))
-    # plot_scatterPlotMap: 1 / 0 / -1
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_scatter_ok, 1)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_scatter_base_vazia, 0)))
-    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_scatter_coords_corrompidas, -1)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_plot_bubbleMap, 0)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_plot_heatMap, 0)))
+    testes.addTest(unittest.FunctionTestCase(lambda: verifica(teste_plot_scatterPlotMap, 0)))
     return testes
 
 
